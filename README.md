@@ -1,5 +1,5 @@
-R-gravity-package
+R-package "hygra"
 =================
 
-#R pilot project for creating a package that automatices forward gravity calculations with the software R
+#Pilot project for creating a package that automatices forward gravity calculations out of hydro(geo)locigal data using R
 

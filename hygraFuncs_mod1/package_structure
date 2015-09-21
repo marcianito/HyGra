@@ -1,0 +1,75 @@
+##################################
+### how to use hyGra r package ###
+### how is this package structured ###
+######################################
+
+##dependencies of other packages:
+# zoo, reshape2, dplyr, ggplot2, dplyrExtras, grid, gridExtra, scales, plyr, HydroMe, xts, 
+#
+
+##gravity-internal.r :
+# functions for internal usage, no real passing / modifying of parameters; so far only gravity calculations (forsberg, macmillan, point-mass)
+
+##functions : 
+# perform a in itself logical and closed calculation, transformation or just plotting
+
+##scritps :
+# a logical and "cronological" combination of various functions and in between calculations; in the best case they combine all calculations needed for one location or research question
+
+## locations, purposes / research questions, so far:
+
+##comparewettzell.r
+# calculate timeshifts of different time series (soil moisture, groundwater)
+# calculate hydrological vadose zone parameters (Ksat, Kun, eff.Porosity, saturation, vanGenuchten parameters, theta X at saturation Y (and viceversa) 
+
+##trime.r
+# calculate and plot 3-directional vertical trime measurements
+
+##allhydrus.r
+# everything needed for hydrus modeling (1D,2D,3D)
+# create DEM for hydrus
+# generate input time series
+# plotting hydrus output
+
+##wettzell_ConcepHydMod.r
+# conceptional hydrological model (different storage compartments)
+# modified and translated into r from Benjamin Creutzfelds storage department model
+# calculate gravity response (local hydrology only), based on DEM for hyd-mod domain and compartments
+# generate input time series for wettzell
+# parameter selection or monte carlo simulation
+# calculate storages snow, snowmelt, infiltration into soil, first soil storage, saprolite, groundwater
+# water storage changes (WSC) of storage compartments and their plotting
+
+##preparedatawettzell.r
+# prepare time series for wettzell (soil moisture, climate data, groundwater levels, lysimeter data, runoff, snow, precipitation)
+# filter data for read-error-corrections
+
+##wettzell_Hydrus.r
+# calculate gravity response (local hydrology), based on DEM for hydrus domain and compartments
+# read hydrus output
+# plot soil moisture and groundwater
+
+##wettzell.r
+#! seems old and meanwhile split into several other files !#
+#!? not sure, check !?#
+# read observed gravity
+# calculate gravity respone, based on DEM
+# calculate hyd-mod
+# prepare hydrus
+# plot soil moisture, groundwater
+
+##gravity_processing_concepcion.r
+# read CATFLOW output (soil moisture)
+# read observed data (TIGO)
+# read groundwater data
+# calculate gravity response, based on CATFLOW output
+# plot various data combinations
+# plot rain data (GFZ vs. TIGO)
+# plot soil moisture data (observed and modeled)
+# plot groundwater
+# read observed gravity data (TIGO)
+# calculate gravity response, based on groundwater
+# some statistics (RMSE, Nash-Sutcliffe)
+# fit specific yield
+
+

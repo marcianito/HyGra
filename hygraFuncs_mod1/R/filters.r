@@ -60,3 +60,33 @@ return(file.out)
 }
 
 ### end filtering soil data ###
+#
+#' @title Signal to noise ratio
+#'
+#' @description Calculates signal to noise ratio (SNR) based on moving average window signal correction.
+#'
+#' @param data.in input time series dataset (zoo)
+#' @param mv_win width of moving average window, in observation time steps (no explicit time unit)
+#' @param rmNA logical. should NA values be remove within the forming of mean values? default is TRUE
+#' @param plotting logical. if true (not default) datasets are plotted
+#' @details The output is a numeric number, representative for the complete input time period.
+#' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+#' 
+
+snr = function(data.in, mv_win, rmNA = T, plotting=F){
+	data_mv = rollapply(data.in,mv_win, mean, na.rm=rmNA) #mv of 24 hours
+	dataset = merge(data.in,data_mv,all=F)
+	colnames(dataset) = c("raw","signal")
+	dataset$noise = dataset$raw - dataset$signal
+	signal_amp = abs(range(dataset$signal, na.rm=T)[1] - range(dataset$signal, na.rm=T)[2])
+	noise_sd = sd(dataset$noise, na.rm=T)
+	#noise_amp = abs(range(dataset$noise, na.rm=T)[1] - range(dataset$noise, na.rm=T)[2])
+	#data_snr = signal_amp/noise_amp
+	snr_ratio = signal_amp / (2*noise_sd)
+	if(snr_ratio > 1) snr_pass = 1 #snr test passed, signal seems reasonable
+	else snr_pass = 0 #snr test failed, signal is too small
+	if(plotting==T) plot(dataset,xlab = "", main=paste(deparse(substitute(data.in)),": SNR = ",format(snr_ratio,digits=2)," (mavg window: ",mv_win/4," hours)",sep=""))
+	return(snr_ratio)
+}

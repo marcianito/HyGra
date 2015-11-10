@@ -232,6 +232,34 @@ hydrus_gw <- function(date.in, date.out, name, depthLB, freq="hour",aszoo=F){
       else {return(gw.corrected)}
 }
 
+#' @title Data preparation for HYDRUS
+#'
+#' @description soil moisture TS 
+#'
+#' @param date.in starting date (POSIXct)
+#' @param date.out ending date (POSIXct)
+#' @param name name of groundwater well to use. Possible so far "BK1", "BK2", "BK3", "BK14".
+#' @param depthLB depths of lower model boundary. All groundwater level values will be subtracted from this value.
+#' @param freq frequency of data. Possible values are "day", "hour", "min", "sec".
+#' @param aszoo output either in data.frame (aszoo=F) or zoo (aszoo=T). Default value is FALSE.
+#' @param aprox if the time series has some NA-values, they can be approximized. Default value is TRUE.
+#' 
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+
+hydrus_sm <- function(date.in, date.out, name, datacol, freq="hour",aszoo=F){
+      library(zoo); Sys.setenv(TZ = "GMT") #;library(xts)
+      sm.name = load(file=paste("/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/",name,"_filtered_6hourmean.rdata",sep=""))
+      sm.agg = aggregate(get(sm.name)[,datacol], function(x) as.POSIXct(trunc(x, freq),ts="GMT"),mean, na.rm=T) #autocorrection of non-rounded timestampts
+      date.in.freq = as.POSIXct(trunc(date.in, freq),ts="GMT")
+      date.out.freq = as.POSIXct(trunc(date.out, freq),ts="GMT")
+      #gw = gw.agg[which(index(gw.agg)==date.in):which(index(gw.agg)==date.out)]
+      sm = sm.agg[which(index(sm.agg)==date.in.freq):which(index(sm.agg)==date.out.freq)]
+      if(aszoo==F){
+      return(zootodf(sm))
+      }
+      else {return(sm)}
+}
 #' @title Read Hydrus 1D output data
 #'
 #' @description test
@@ -504,10 +532,8 @@ read_hydrus2d_rect <- function(folder, timesteps, vertical_nodes, horizontal_nod
 #' @description test
 #'
 #' @param folder foldername of project to read
-#' @param vertical_nodes number of nodes used in the vertical model discretisation
-#' @param horizontal_nodes number of nodes used in the horizontal model discretisation
 #' @param timesteps number of modeled timesteps
-#' @param t_printout number of model printout times
+#' @param t_printout string of dates of time series where informations are printed
 #' @param plotting indicate if standard parameters should be plotted (TRUE); default is FALSE
 #' @param timestamps vector of timestamps of the modeled timeseries. if not provided output time will be in counts of timesteps
 #' @param px number of horizontal node, where the vertical profile should be analyzed
@@ -517,18 +543,20 @@ read_hydrus2d_rect <- function(folder, timesteps, vertical_nodes, horizontal_nod
 #' 
 
 # read_hydrus2d_irregular <- function(folder, timesteps, vertical_nodes, horizontal_nodes, t_printout, plotting=F, timestamps, px){
-read_hydrus2d <- function(folder, timesteps, t_printout, plotting=F, timestamps, px){
+read_hydrus2d <- function(folder, timesteps, factorforprintout, plotting=F, timestamps, profile_loc, vertical=T){
 	# library(dplyr)
 	# library(dplyrExtras)
 
- path_hydrus = "/home/mreich/server/marvin_reich/hydrus2d/" 
+ #path_hydrus = "/home/mreich/server/marvin_reich/hydrus2d/experiments/" 
+ path_hydrus = "/home/mreich/server/hydro72/hydrus2d/experiments/" 
  setwd(paste(path_hydrus, folder, "/", sep="")) 
  #read hydrus 2d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
  nodes_max = nodes_meta[1,2]
  cord_depthIN = read.table("MESHTRIA.TXT", header=F, skip=1 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
- order_x = cord_depthIN[,2]
- order_z = cord_depthIN[,3]
+ #order_x = cord_depthIN[,2]
+ #order_z = cord_depthIN[,3]
+ grid_cords = data.frame(x=cord_depthIN[,2] ,z=cord_depthIN[,3])
  # cord_depth = unique(cord_depthIN[,3]);
  # cord_depth = cord_depth - max(cord_depth)
  h_num_lines = length(readLines("h_Mean.out"))
@@ -548,37 +576,57 @@ read_hydrus2d <- function(folder, timesteps, t_printout, plotting=F, timestamps,
 
  #generate sequence of vertical profiles to read out; each vertical profile needs their own sequence!!
  #vertiklales profil bei x=2 & x=10m
- #vert1 = seq(px,by=horizontal_nodes,length.out=vertical_nodes)
+ #vert1 = seq(profile_loc,by=horizontal_nodes,length.out=vertical_nodes)
  
- th_h_profiles = data.frame()
- for(i in 0:t_printout){
- TH_infoTIME = read.table(file="TH.TXT", header=F, skip=1 + i*(ceiling(nodes_max/10) + 3), sep="", nrows=1, dec=".")[,3]
- TH_infoIN = scan(file="TH.TXT", skip=3+ i*(ceiling(nodes_max/10) + 3), sep="", nmax=nodes_max, dec=".")
- H_infoTIME = read.table(file="H.TXT", header=F, skip=1+ i*(ceiling(nodes_max/10) + 3), sep="", nrows=1, dec=".")[,3]
- H_infoIN = scan(file="H.TXT", skip=3+ i*(ceiling(nodes_max/10) + 3), sep="", nmax=nodes_max, dec=".")
- profiles = data.frame(x=order_x ,Depth=(order_z-max(order_z)), Moisture=TH_infoIN, Head=H_infoIN,Time=TH_infoTIME)
- th_h_profiles = rbind(th_h_profiles,profiles)
- }
+system("sed -n '/^[[:space:]]*[T]/p' TH.TXT > bash_time.out")
+system("sed -n '/^[[:space:]]*[0-9]/p' TH.TXT > bash_dataTH.out")
+system("sed -n '/^[[:space:]]*-*[0-9]/p' H.TXT > bash_dataH.out")
 
- # th_h_profiles = data.frame()
- # for(i in 0:t_printout){
- # TH_infoTIME = read.table(file="TH.TXT", header=F, skip=1 + i*(ceiling(nodes_max/10) + 3), sep="", nrows=1, dec=".")[,3]
- # TH_infoIN = scan(file="TH.TXT", skip=3+ i*(ceiling(nodes_max/10) + 3), sep="", nmax=nodes_max, dec=".")
- # H_infoTIME = read.table(file="H.TXT", header=F, skip=1+ i*(ceiling(horizontal_nodes*vertical_nodes/10) + 3), sep="", nrows=1, dec=".")[,3]
- # H_infoIN = scan(file="H.TXT", skip=3+ i*(ceiling(horizontal_nodes*vertical_nodes/10) + 3), sep="", nmax=vertical_nodes*horizontal_nodes, dec=".")
- ##fetch times and values of each corresponding vertical profile! 
- # TH_profile1 = TH_infoIN[vert1]
- # H_profile1 = H_infoIN[vert1]
- # profiles = data.frame(Time=H_infoTIME, x= px, z= (1:vertical_nodes), Depth= cord_depth, Head= H_profile1, Moisture=TH_profile1)
- # th_h_profiles = rbind(th_h_profiles,profiles)
- # }
+printout = read.table(file="bash_time.out", dec=".")
+data.th = scan(file="bash_dataTH.out", dec=".")
+data.h = scan(file="bash_dataH.out", dec=".")
+time_print = printout[,3]
+th_h_profiles = data.frame(Time=rep(time_print, each=nodes_max),
+		      x=rep(grid_cords$x, each=length(time_print)),
+		      #y=rep(grid_cords$y, each=length(time_print)),
+		      Depth=rep(grid_cords$z, each=length(time_print)),
+		      Moisture=data.th,Head=data.h)
+##interpolate hydrus mesh output to regular grid
+#library(fields)
+library(gstat)
+#generate regular-spaced grid
+grid.x <- seq(min(grid_cords$x), max(grid_cords$x), by=1)
+#grid.y <- seq(min(grid_cords$y), max(grid_cords$y), by=1)
+grid.z <- seq(min(grid_cords$z), max(grid_cords$z), by=0.05)
+#grid.xyz <- expand.grid(x=grid.x, y=grid.y, Depth=grid.z)
+grid.xz <- expand.grid(x=grid.x, Depth=grid.z)
+
+#interpolate and "stack" for each timestep
+nodal.plot=data.frame()
+for(i in time_print){
+th_h_data = filter(th_h_profiles, Time==i) #filter for one timestep
+#theta
+idw.gstat <- gstat(formula = Moisture ~ 1, locations = ~ x + Depth, data = th_h_data, nmax = 15, set = list(idp = 2))
+theta_interpolated <- predict(idw.gstat, grid.xz)
+data_interpolated = cbind(Time = i, theta_interpolated[,-4])
+colnames(data_interpolated)[4] = "Moisture"
+theta_t = melt(data_interpolated, id.vars=c("Time","Depth","x"), measure.vars=c("Moisture"), variable.name = "Parameters")
+#head
+idw.gstat <- gstat(formula = Head ~ 1, locations = ~ x + Depth, data = th_h_data, nmax = 15, set = list(idp = 2))
+head_interpolated <- predict(idw.gstat, grid.xz)
+data_interpolated = cbind(Time = i, head_interpolated[,-4])
+colnames(data_interpolated)[4] = "Head"
+head_t = melt(data_interpolated, id.vars=c("Time","Depth","x"), measure.vars=c("Head"), variable.name = "Parameters")
+#join data together
+nodal.plot = rbind(nodal.plot, theta_t, head_t)
+}
 
  balanceTIME = read.table(file="Balance.out", header=F, skip=21, sep="", nrows=1, dec=".")
  balanceVOL = read.table(file="Balance.out", header=F, skip=29, sep="", nrows=1, dec=".")
  balancePER = read.table(file="Balance.out", header=F, skip=30, sep="", nrows=1, dec=".")
  balance = cbind(balanceTIME[,3], balanceVOL[,3], balancePER[,3])
-for(i in 2:(t_printout+1)){
- if(i == (t_printout+1)) break
+for(i in 2:length(time_print)){
+ if(i == length(time_print)) break
  balanceTIME = read.table(file="Balance.out", header=F, skip=((i-1)*13+21), sep="", nrows=1, dec=".")
  balanceVOL = read.table(file="Balance.out", header=F, skip=((i-1)*13+29), sep="", nrows=1, dec=".")
  balancePER = read.table(file="Balance.out", header=F, skip=((i-1)*13+30), sep="", nrows=1, dec=".")
@@ -600,16 +648,20 @@ for(i in 2:(t_printout+1)){
 # library(gridExtra)
 # library(scales)
  h_v_Mean.plot = melt(h_v_Mean, id.vars=c("datetime","Time"), measure.vars=colnames(h_v_Mean)[2:22], variable.name = "Parameters")
- nodal.plot = melt(th_h_profiles, id.vars=c("Time", "Depth","x"), measure.vars=c("Moisture","Head"), variable.name = "Parameters")
+ #nodal.plot = melt(th_h_profiles, id.vars=c("Time", "Depth","x"), measure.vars=c("Moisture","Head"), variable.name = "Parameters")
 
- printtimes = unique(th_h_profiles$Time)
- #  printtimes = unique(balance[,1]) 
- printdates = c(datetime[1],datetime[printtimes])
+ #printtimes = unique(th_h_profiles$Time)
+ #printdates = c(datetime[1],datetime[printtimes])
+ printdates = c(datetime[1],datetime[time_print])
  #  printdates = c(datetime[printtimes+1], datetime[timesteps])
- dates_times = data.frame(Time=printtimes, Dates=format(printdates, "%Y-%m-%d:%H"))
+ #dates cut to "days", better for displaying in x-axis
+ #but problematic if 2 dates are selected within one day,then use second option
+ #dates_times = data.frame(Time=time_print, Dates=as.POSIXct(format(printdates, "%Y-%m-%d:%H:%M")))
+ dates_times = data.frame(Time=time_print, Dates=printdates)
+ t_printout = time_print[seq(1, length(time_print), factorforprintout)]
+ dates_times_print = filter(dates_times, Time%in%t_printout)
 
- xcolors = colorRampPalette(c("blue","red", "orange","darkgreen"))(t_printout+1)
- #  xcolors = colorRampPalette(c("blue","green"))(t_printout+1)
+ xcolors = colorRampPalette(c("blue","red", "orange","darkgreen"))(length(t_printout))
 
  #  balance.plot = melt(balance, id.vars="Time", measure.vars=colnames(balance)[-1])
  #subsetting to choose standard parameters
@@ -638,26 +690,45 @@ for(i in 2:(t_printout+1)){
 
  #  h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value, colour=Boundary)) + geom_line() + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(colour=xcolors, face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates), colour="grey") + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
  #  h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(colour=xcolors, face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates),colour="grey") + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
- h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates),colour=xcolors, size=2, alpha=0.5) + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
+ #h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates),colour=xcolors, size=2, alpha=0.5) + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
+ h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(dates_times_print$Dates),colour=xcolors, size=2, alpha=0.5) + scale_x_datetime(breaks=dates_times_print$Dates, labels=date_format("%d-%m-%Y")) 
  
  choose.params.nodal = c("Head", "Moisture")
  units = data.frame(Parameters=choose.params.nodal, Unit=c("[m]", "[%]"))
  #  nodal.plot.filter = 	filter(nodal.plot, Parameters == choose.params.nodal) %>%
+ if(vertical==T){
  nodal.plot.filter = 	filter(nodal.plot, grepl("Head|Moisture",Parameters)) %>%
-			filter(x==px) %>%
+			filter(x==profile_loc) %>%
+			filter(Time%in%t_printout) %>%
 			transform(Hours=as.factor(Time)) %>%
 			transform(Days=as.factor(Time/24)) %>%
  			inner_join(units,by="Parameters") %>%
 			mutate(ParamUnits = paste(Parameters,Unit)) %>%
  			inner_join(dates_times,by="Time") %>%
 			arrange(Time, Parameters, Depth, x)
-			
  nodal.plot.filter$ParamUnits = factor(nodal.plot.filter$ParamUnits,levels=c("Head [m]","Moisture [%]"))
-
- #  nodal.gg = ggplot(nodal.plot.filter, aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "bottom",legend.text=element_text(size=10),legend.title=element_blank())
+ nodal.plot.filter$Dates = as.factor(nodal.plot.filter$Dates)
+ profile_type="vertical"
  nodal.gg = ggplot(nodal.plot.filter, aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "none") + scale_color_manual(values = xcolors)
+ }else{
+ nodal.plot.filter = 	filter(nodal.plot, grepl("Head|Moisture",Parameters)) %>%
+			filter(Depth==profile_loc) %>%
+			filter(Time%in%t_printout) %>%
+			transform(Hours=as.factor(Time)) %>%
+			transform(Days=as.factor(Time/24)) %>%
+ 			inner_join(units,by="Parameters") %>%
+			mutate(ParamUnits = paste(Parameters,Unit)) %>%
+ 			inner_join(dates_times,by="Time") %>%
+			arrange(Time, Parameters, Depth, x)
+ nodal.plot.filter$ParamUnits = factor(nodal.plot.filter$ParamUnits,levels=c("Head [m]","Moisture [%]"))
+ nodal.plot.filter$Dates = as.factor(nodal.plot.filter$Dates)
+ profile_type="horizontal"
+ nodal.gg = ggplot(nodal.plot.filter, aes(x=x, y=value, colour=Dates, group=Dates)) + geom_path() + xlab("Cross-section [m]") + ylab ("") + facet_grid(ParamUnits ~ ., scale="free_y") + theme(legend.position = "none") + scale_color_manual(values = xcolors)
+ }
+ #  nodal.gg = ggplot(nodal.plot.filter, aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "bottom",legend.text=element_text(size=10),legend.title=element_blank())
+ #nodal.gg = ggplot(nodal.plot.filter, aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "none") + scale_color_manual(values = xcolors)
  #merge both plots together
- grid.arrange(h_v_Mean.gg,nodal.gg,main=paste(folder,": vertical profile at x =", px, sep=" "))
+ grid.arrange(h_v_Mean.gg,nodal.gg,top=textGrob(paste(folder,":", profile_type," profile at: ", profile_loc,"[m]", sep="")))
 }
  return(print("Output stored in variables h_Mean, v_Mean, th_h_profiles and balance"))
 }
@@ -668,8 +739,6 @@ for(i in 2:(t_printout+1)){
 #' @description test
 #'
 #' @param folder foldername of project to read
-#' @param vertical_nodes number of nodes used in the vertical model discretisation
-#' @param horizontal_nodes number of nodes used in the horizontal model discretisation
 #' @param timesteps number of modeled timesteps
 #' @param t_printout number of model printout times
 #' @param plotting indicate if standard parameters should be plotted (TRUE); default is FALSE
@@ -723,8 +792,8 @@ th_h_profiles = data.frame(Time=rep(time_print, each=nodes_max),
 		      y=rep(grid_cords$y, each=length(time_print)),
 		      Depth=rep(grid_cords$z, each=length(time_print)),
 		      Moisture=data.th,Head=data.h)
-##interpolate hydrus mesh output to regular grid
 
+##interpolate hydrus mesh output to regular grid
 #library(fields)
 library(gstat)
 
@@ -736,7 +805,7 @@ grid.xyz <- expand.grid(x=grid.x, y=grid.y, Depth=grid.z)
 
 #interpolate and "stack" for each timestep
 nodal.plot=data.frame()
-for(i in 0:t_printout){
+for(i in time_print){
 th_h_data = filter(th_h_profiles, Time==i) #filter for one timestep
 #theta
 idw.gstat <- gstat(formula = Moisture ~ 1, locations = ~ x + y + Depth, data = th_h_data, nmax = 15, set = list(idp = 2))

@@ -18,7 +18,7 @@
 #' @export
 #' 
 
-timeshift = function(data1,data2,nmax,norm=T,stl=T,plotting=T,swin=24,twin,sensor1="data1", sensor2="data2",...){
+timeshift = function(data1,data2,nmax,norm=T,stl=F,plotting=T,swin,twin,sensor1="data1", sensor2="data2",...){
 # library(zoo);
   Sys.setenv(TZ = "GMT")
 # library(xts)
@@ -109,8 +109,32 @@ timeshift = function(data1,data2,nmax,norm=T,stl=T,plotting=T,swin=24,twin,senso
 	} #end check-run data2
 	}
 	else{ #use NON-decomposed TS
-	data1.in = coredata(data1.year.norm[[i]])
-	data2.in = coredata(data2.year.norm[[i]])
+	#detrend both time series, using linear fit
+	#method uses least-squares fit by an regression analysis
+	#datasets needs to be approximized
+	#if not, lm() returns shorter datasets (if NAs are within the data)
+	#this would lead to wrong detrending when resting data(org)-trend!
+	data1.approx = na.approx(coredata(data1.year.norm[[i]]))
+	data1.model = lm(data1.approx ~ I(1:length(data1.approx)))
+	data1.trend = predict(data1.model)
+	#summary(model)
+	#removing the trend from "raw"-data
+	data1.in = data1.approx - data1.trend
+	#plot(coredata(data1.year.norm[[i]]))
+	#abline(data1.model)
+	#lines(data1.detrended, col="blue")
+	data2.approx = na.approx(coredata(data2.year.norm[[i]]))
+	data2.model = lm(data2.approx ~ I(1:length(data2.approx)))
+	data2.trend = predict(data2.model)
+	#summary(model)
+	#removing the trend from "raw"-data
+	data2.in = data2.approx - data2.trend
+	#plot(coredata(data2.year.norm[[i]]))
+	#abline(data2.model)
+	#lines(data2.detrended, col="blue")
+	#old version without detrending if no "stl" is used
+	#data1.in = coredata(data1.year.norm[[i]])
+	#data2.in = coredata(data2.year.norm[[i]])
 	}
 	# cross-correlation
 	#browser()
@@ -191,7 +215,7 @@ timeshift = function(data1,data2,nmax,norm=T,stl=T,plotting=T,swin=24,twin,senso
 #' @export
 #' 
 
-ccf_events = function(event, event_name, mv_win, plots=T, ...){
+ccf_events = function(event, event_name, mv_win, stl_flag=F,plots=T,...){
 #load data
 #soil moisture
 load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/SGnew_filtered_6hourmean.rdata")
@@ -230,20 +254,51 @@ ts_event$gw_event = na.approx(ts_event$gw_event)
 ts_event$precip_event = na.approx(ts_event$precip_event)
 colnames(ts_event) = c("a shallow","a middle high","a middle low","a deep","b shallow","b deep","c shallow","c middle high","c middle low","c deep","d shallow","d deep","gw","precip")
 if(plots==T) plot(ts_event, xlab="", main=event_name)
-#correlation analysis and snr-calculation
-stl_flag=F; plotting=F
+#SNR: ratios and filtering
+plotting=F
+#ratios
+b06_event.snr = round(snr_ratio(b06_event,mv_win,T,plotting),2)
+c06_event.snr = round(snr_ratio(c06_event,mv_win,T,plotting),2)
+d07_event.snr = round(snr_ratio(d07_event,mv_win,T,plotting),2)
+c08_event.snr = round(snr_ratio(c08_event,mv_win,T,plotting),2)
+c14_event.snr = round(snr_ratio(c14_event,mv_win,T,plotting),2)
+b16_event.snr = round(snr_ratio(b16_event,mv_win,T,plotting),2)
+c17_event.snr = round(snr_ratio(c17_event,mv_win,T,plotting),2)
+d18_event.snr = round(snr_ratio(d18_event,mv_win,T,plotting),2)
+#testwise also for profile a
+a06_event.snr = round(snr_ratio(a06_event,mv_win,T,plotting),2)
+a10_event.snr = round(snr_ratio(a10_event,mv_win,T,plotting),2)
+a14_event.snr = round(snr_ratio(a14_event,mv_win,T,plotting),2)
+a18_event.snr = round(snr_ratio(a18_event,mv_win,T,plotting),2)
+#filtering TS (use mv as signal instead of origial "raw" data
+#also filter profile a: apply same filtering on ALL ts included in analysis!!
+b06_event.filter = snr_filter(b06_event,mv_win,T,plotting)
+c06_event.filter = snr_filter(c06_event,mv_win,T,plotting)
+d07_event.filter = snr_filter(d07_event,mv_win,T,plotting)
+c08_event.filter = snr_filter(c08_event,mv_win,T,plotting)
+c14_event.filter = snr_filter(c14_event,mv_win,T,plotting)
+b16_event.filter = snr_filter(b16_event,mv_win,T,plotting)
+c17_event.filter = snr_filter(c17_event,mv_win,T,plotting)
+d18_event.filter = snr_filter(d18_event,mv_win,T,plotting)
+a06_event.filter = snr_filter(a06_event,mv_win,T,plotting)
+a10_event.filter = snr_filter(a10_event,mv_win,T,plotting)
+a14_event.filter = snr_filter(a14_event,mv_win,T,plotting)
+a18_event.filter = snr_filter(a18_event,mv_win,T,plotting)
+#Correlation anaylsis
+#stl_flag=F;
+plotting=F
 swin=17521 ;twin=17521
 #shallow
-a06_b06_event.cor = timeshift(a06_event,b06_event,1,T,stl_flag,plotting,swin,twin,"",""); b06_event.snr = round(snr(b06_event,mv_win,T,plotting),2)
-a06_c06_event.cor = timeshift(a06_event,c06_event,1,T,stl_flag,plotting,swin,twin,"",""); c06_event.snr = round(snr(c06_event,mv_win,T,plotting),2)
-a06_d07_event.cor = timeshift(a06_event,d07_event,1,T,stl_flag,plotting,swin,twin,"",""); d07_event.snr = round(snr(d07_event,mv_win,T,plotting),2)
+a06_b06_event.cor = timeshift(a06_event.filter,b06_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
+a06_c06_event.cor = timeshift(a06_event.filter,c06_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
+a06_d07_event.cor = timeshift(a06_event.filter,d07_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
 #in between sensors (only 2 from profile c)
-a10_c08_event.cor = timeshift(a10_event,c08_event,1,T,stl_flag,plotting,swin,twin,"",""); c08_event.snr = round(snr(c08_event,mv_win,T,plotting),2)
-a14_c14_event.cor = timeshift(a14_event,c14_event,1,T,stl_flag,plotting,swin,twin,"",""); c14_event.snr = round(snr(c14_event,mv_win,T,plotting),2)
+a10_c08_event.cor = timeshift(a10_event.filter,c08_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
+a14_c14_event.cor = timeshift(a14_event.filter,c14_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
 #deep
-a18_b16_event.cor = timeshift(a18_event,b16_event,1,T,stl_flag,plotting,swin,twin,"",""); b16_event.snr = round(snr(b16_event,mv_win,T,plotting),2)
-a18_c17_event.cor = timeshift(a18_event,c17_event,1,T,stl_flag,plotting,swin,twin,"",""); c17_event.snr = round(snr(c17_event,mv_win,T,plotting),2)
-a18_d18_event.cor = timeshift(a18_event,d18_event,1,T,stl_flag,plotting,swin,twin,"",""); d18_event.snr = round(snr(d18_event,mv_win,T,plotting),2)
+a18_b16_event.cor = timeshift(a18_event.filter,b16_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
+a18_c17_event.cor = timeshift(a18_event.filter,c17_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
+a18_d18_event.cor = timeshift(a18_event.filter,d18_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
 #correlation results
 results_event = rbind(cbind(Profile="shallow",a06_b06_event.cor,sensor="b", depth=0.6, event=event_name, snr=b06_event.snr),
 		cbind(Profile="shallow",a06_c06_event.cor,sensor="c", depth=0.6, event=event_name, snr=c06_event.snr),
@@ -254,20 +309,29 @@ results_event = rbind(cbind(Profile="shallow",a06_b06_event.cor,sensor="b", dept
 		cbind(Profile="deep",a18_c17_event.cor,sensor="c", depth=1.7, event=event_name, snr=c17_event.snr),
 		cbind(Profile="deep",a18_d18_event.cor,sensor="d", depth=1.8, event=event_name, snr=d18_event.snr))
 colnames(results_event)[2:3] = c("correlation","lagtime")
-
+#print snr ratios for profile a
+print("SNR ratios for profile a:")
+print(paste("Event:",event_name,sep=" "))
+print(paste("a06:",a06_event.snr, sep=" "))
+print(paste("a10:",a10_event.snr, sep=" "))
+print(paste("a14:",a14_event.snr, sep=" "))
+print(paste("a18:",a18_event.snr, sep=" "))
+#return table of ccf results, together with other meta information and snr-ratios
 return(results_event)
 } #end of function
 
 #' @title Multi-event based ccf approach, including lagtimes and SNR
 #'
-#' @description 
+#' @description Input events are filtered by SNR and optionally correlation and lagtime thresholds. The filtered datasets are then cross-correlated.
+#' @description The resulting correlation coefficents, lagtimes and statistics are plotted and returned in form of a table (data frame).
 #' @description So far hard-coded for SM data of wettzell SGnew TS
 #'
 #' @param events data.frame of events; each row limits one event, event[,1] = start dates, event[,2] = end dates, event[,3] = event name.
 #' @param mv_win length of window for moving average to smooth data in order to calculate signal to noise ratios.
-#' @param limit_snr threshold for signal to noise ratio values; default value is 1 and should not be changed. see details. 
+#' @param limit_snr is now hardcoded!! threshold for signal to noise ratio values; default value is 1 and should not be changed. see details. 
 #' @param limit_cor threshold for correlation coefficient values; all values below limit_cor will be discarted.
 #' @param limit_lag threshold for lagtime values; all values above limit_lag will be discarted.
+#' @param correct_cor,correct_lag logical. should these quality filters be applied (TRUE, default) or only be included into statistics (done always).
 #' @param plotting logical, should the results be plotted? (default is TRUE).
 #'
 #' @details Output is a data.frame with mean values for correlation coeficients, lagtime and quality of signal to soise ratio.
@@ -276,7 +340,7 @@ return(results_event)
 #' @export
 #' 
 
-ccf_multievent = function(events, mv_win, limit_snr=1, limit_cor, limit_lag, plotting=T){
+ccf_multievent = function(events, mv_win, limit_cor, correct_cor=T, limit_lag, correct_lag=T, stl_flag, plotting=T){
 
 	numberofevents = length(events[,1])
 	results_all = data.frame()
@@ -284,27 +348,33 @@ ccf_multievent = function(events, mv_win, limit_snr=1, limit_cor, limit_lag, plo
 	for(i in 1:numberofevents){
 		event = c(events[i,1:2])
 		name=as.character(events[i,3])
-		res = ccf_events(event, name, mv_win, F)
+		res = ccf_events(event, name, mv_win, stl_flag, F)
 		#filter results for bad snr AND count occurances of bad snr
 		res$snrtest = 1; res$cortest = 1; res$lagtest = 1
 		#filter bad SNR
-		snr_out = which(res$snr < limit_snr)
+		snr_out = which(res$snr < 1)
 		#filter bad correlation
 		cor_out = which(res$correlation < limit_cor)
 		#filter bad lagtime
 		lag_out = which(res$lagtime > limit_lag)
-		#apply cor and lag filter
+		#apply snr filter; not optional
 		res$correlation[snr_out] = NA
 		res$lagtime[snr_out] = NA
-		res$snrtest[snr_out] = 0
+		#apply cor and lag filter; optional
+		if(correct_cor == T){
 		res$correlation[cor_out] = NA
 		res$lagtime[cor_out] = NA
-		res$cortest[cor_out] = 0 
+		}
+		if(correct_lag == T){
 		res$correlation[lag_out] = NA
 		res$lagtime[lag_out] = NA
+		}
+		#for statistics
+		res$snrtest[snr_out] = 0
+		res$cortest[cor_out] = 0 
 		res$lagtest[lag_out] = 0
+		#combine actual with all results
 		results_all = rbind(results_all, res)
-		#result_all[,,i] = as.matrix(cbind(res$correlation,res$lagtime,res$snr))
 		sensor_metadata = data.frame(Profile=res$Profile,sensor=res$sensor,depth=res$depth)
 		sensor_metadata = mutate(sensor_metadata, sensorprofile = paste(sensor,Profile,sep=" "))
 	}
@@ -318,14 +388,17 @@ ccf_multievent = function(events, mv_win, limit_snr=1, limit_cor, limit_lag, plo
 	snrpass = summarise(results_ordered, SNRpass = sum(snrtest, na.rm=T))
 	corpass = summarise(results_ordered, CORpass = sum(cortest, na.rm=T))
 	lagpass = summarise(results_ordered, LAGpass = sum(lagtest, na.rm=T))
+	filtered_abs = summarise(results_ordered, filtered =  length(which(is.na(correlation)==T)))
+	used_abs = summarise(results_ordered, dataused =  numberofevents - length(which(is.na(correlation)==T)))
 	#putting together with sensor meta data
-	results_mean = cbind(cor_mean[,1:2], lag_mean[,2], snrpass[,2], corpass[,2], lagpass[,2])
+	results_mean = cbind(cor_mean[,1:2], lag_mean[,2], snrpass[,2], corpass[,2], lagpass[,2], filtered_abs[,2])
 	valuerange = cbind(cor_mean[,-2], lag_mean[,3:4])
 	results_mean = inner_join(results_mean, sensor_metadata, by="sensorprofile") %>%
 		       mutate(SNR = SNRpass / numberofevents) %>%
 		       mutate(COR = CORpass / numberofevents) %>%
-		       mutate(LAG = LAGpass / numberofevents)
-	results_table = data.frame(Sensor = results_mean$sensorprofile, Depth = results_mean$depth, Correlation = results_mean$cor_mean, Lagtime = results_mean$lag_mean, SNRpass = results_mean$SNR, CORpass = results_mean$COR,LAGpass = results_mean$LAG)
+		       mutate(LAG = LAGpass / numberofevents) %>%
+	       	       mutate(EventsUsed = numberofevents - filtered)
+	results_table = data.frame(Sensor = results_mean$sensorprofile, Depth = results_mean$depth, Correlation = results_mean$cor_mean, Lagtime = results_mean$lag_mean, SNRpass = results_mean$SNR, CORpass = results_mean$COR,LAGpass = results_mean$LAG, EventsUsed = results_mean$EventsUsed)
 	if(plotting ==T){
 	#prepare for plotting
 	results_mean_plot = melt(results_mean, id=c("Profile","sensor","depth","sensorprofile"))
@@ -334,18 +407,22 @@ ccf_multievent = function(events, mv_win, limit_snr=1, limit_cor, limit_lag, plo
 	results_cor = mutate(results_mean_plot, sensor = factor(sensor, levels=c("d","c","b"))) %>%
 		      filter(variable == "cor_mean") %>%
 		      inner_join(valuerange, by="sensorprofile") %>%
-		      group_by(sensor, depth)
+		      inner_join(used_abs, by="sensorprofile") #%>%
+		      #group_by(sensor, depth)
 	correlation.gg = ggplot(data=results_cor, aes(x=value, y=(depth*-1),colour=value)) + ylab("Depth [m]") + xlab("Correlation coefficient [%]") + geom_point(size=4.5) + theme_bw() + ggtitle("") +
 	geom_errorbarh(aes(xmax=cor_max,xmin=cor_min)) + geom_path() +
+	geom_text(aes(label=dataused), vjust=1.3, hjust=1.3) +
 	scale_y_continuous(breaks = c(-0.6,-1.0,-1.5,-1.8)) +
 	facet_grid(.~sensor) + 
 	scale_colour_gradientn("",colours=c("black","blue","red"))#, breaks=breaks_val)
 	#lagtime
 	results_lag = mutate(results_mean_plot, sensor = factor(sensor, levels=c("d","c","b"))) %>%
 		      filter(variable == "lag_mean") %>%
-		      inner_join(valuerange, by="sensorprofile")
+		      inner_join(valuerange, by="sensorprofile") %>%
+		      inner_join(used_abs, by="sensorprofile") #%>%
 	lagtime.gg = ggplot(data=results_lag, aes(x=value, y=(depth*-1),colour=value)) + ylab("Depth [m]") + xlab("Lagtime [h]") + geom_point(size=4.5) + theme_bw() + ggtitle("") +
 	geom_errorbarh(aes(xmax=lag_max,xmin=lag_min)) + geom_path() +
+	geom_text(aes(label=dataused), vjust=1.7, hjust=1.3) +
 	scale_y_continuous(breaks = c(-0.6,-1.0,-1.5,-1.8)) +
 	facet_grid(.~sensor) + 
 	scale_colour_gradientn("",colours=c("black","blue","red"))#, breaks=breaks_val)
@@ -357,7 +434,7 @@ ccf_multievent = function(events, mv_win, limit_snr=1, limit_cor, limit_lag, plo
 	facet_grid(.~sensor)# + 
 	#scale_colour_gradientn("",colours=c("black","blue","red"))#, breaks=breaks_val)
 	#all plots together
-	grid.arrange(correlation.gg,lagtime.gg,snrpass.gg)
+	grid.arrange(correlation.gg,lagtime.gg,snrpass.gg, top=paste("Events used in this anaylsis: ",numberofevents,sep=""))
 	}
 	#
 	#return table of mean result

@@ -75,7 +75,7 @@ return(file.out)
 #' @export
 #' 
 
-snr = function(data.in, mv_win, rmNA = T, plotting=F){
+snr_ratio = function(data.in, mv_win, rmNA = T, plotting=F){
 	data_mv = rollapply(data.in,mv_win, mean, na.rm=rmNA) #mv of 24 hours
 	dataset = merge(data.in,data_mv,all=F)
 	colnames(dataset) = c("raw","signal")
@@ -89,4 +89,33 @@ snr = function(data.in, mv_win, rmNA = T, plotting=F){
 	else snr_pass = 0 #snr test failed, signal is too small
 	if(plotting==T) plot(dataset,xlab = "", main=paste(deparse(substitute(data.in)),": SNR = ",format(snr_ratio,digits=2)," (mavg window: ",mv_win/4," hours)",sep=""))
 	return(snr_ratio)
+}
+
+#' @title Signal to noise filtering 
+#'
+#' @description Filters input data based on signal to noise ratios (SNR).
+#'
+#' @param data.in input time series dataset (zoo)
+#' @param mv_win width of moving average window, in observation time steps (no explicit time unit)
+#' @param rmNA logical. should NA values be remove within the forming of mean values? default is TRUE
+#' @param plotting logical. if true (not default) datasets are plotted
+#' @details The output is a time series: signal =  the input time series (raw data) - noise.
+#' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+#' 
+
+snr_filter = function(data.in, mv_win, rmNA = T, plotting=F){
+	data_mv = rollapply(data.in,mv_win, mean, na.rm=rmNA) #mv of 24 hours
+	dataset = merge(data.in,data_mv,all=F)
+	colnames(dataset) = c("raw","signal")
+	dataset$noise = dataset$raw - dataset$signal
+	signal_amp = abs(range(dataset$signal, na.rm=T)[1] - range(dataset$signal, na.rm=T)[2])
+	noise_sd = sd(dataset$noise, na.rm=T)
+	snr_ratio = signal_amp / (2*noise_sd)
+	#if(snr_ratio > 1) snr_signal = dataset$signal #snr test passed, signal seems reasonable
+	#else snr_signal = data.in #snr test failed, signal is too small
+	snr_signal = dataset$signal
+	if(plotting==T) plot(dataset,xlab = "", main=paste(deparse(substitute(data.in)),": SNR = ",format(snr_ratio,digits=2)," (mavg window: ",mv_win/4," hours)",sep=""))
+	return(snr_signal)
 }

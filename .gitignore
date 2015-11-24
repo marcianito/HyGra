@@ -2,3 +2,9 @@
 .Rhistory
 .RData
 R-gravity-package.Rproj
+*.swp
+zz_old/*
+hygraFuncs_old/*
+scripts/*
+.Rbuildignore
+

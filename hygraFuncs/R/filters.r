@@ -1,4 +1,4 @@
-#
+
 #' @title Filtering raw soil moisture data
 #'
 #' @description Filtering raw soil moisture data with adjustable filter criterias.
@@ -16,7 +16,7 @@
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples example MISSING
 #' @export
-#' 
+ 
 filter_soildata <- function(file.input,val.max=1,val.min=0,val.incr,val.decr,lag.max, per.max, per.min, lag.mean,k){
 # source("/home/mreich/R-gravity-package/package09/hygra_test/R/convertzootodataframe.r")
 # require(xts)
@@ -119,3 +119,21 @@ snr_filter = function(data.in, mv_win, rmNA = T, plotting=F){
 	if(plotting==T) plot(dataset,xlab = "", main=paste(deparse(substitute(data.in)),": SNR = ",format(snr_ratio,digits=2)," (mavg window: ",mv_win/4," hours)",sep=""))
 	return(snr_signal)
 }
+
+#' @title Normalize data 
+#'
+#' @description Normalize data in subtracting the mean and dividing by the standard deviation.
+#'
+#' @param x input dataset
+#' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+#' 
+
+normalize = function(x){
+	data_norm = (x - mean(x, na.rm=T))/sd(x,na.rm=T)
+	return(data_norm)
+}
+
+
+

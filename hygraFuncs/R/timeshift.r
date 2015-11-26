@@ -208,6 +208,7 @@ timeshift = function(data1,data2,nmax,norm=T,stl=F,plotting=T,swin,twin,sensor1=
 #' @param event_name character, name of event (mainly used for the plot).
 #' @param mv_win length of window for moving average to smooth data in order to calculate signal to noise ratios.
 #' @param plots logical, should the results be plotted? (default is TRUE).
+#' @param nmax number of outputed results per correlation.
 #'
 #' @details Output is a data.frame with correlation coeficients, lagtime and signal to soise ratios for each sensor.
 #' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
@@ -215,7 +216,7 @@ timeshift = function(data1,data2,nmax,norm=T,stl=F,plotting=T,swin,twin,sensor1=
 #' @export
 #' 
 
-ccf_events = function(event, event_name, mv_win, stl_flag=F,plots=T,...){
+ccf_events = function(event, event_name, mv_win, nmax, stl_flag=F,plots=T,...){
 #load data
 #soil moisture
 load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/SGnew_filtered_6hourmean.rdata")
@@ -289,16 +290,16 @@ a18_event.filter = snr_filter(a18_event,mv_win,T,plotting)
 plotting=F
 swin=17521 ;twin=17521
 #shallow
-a06_b06_event.cor = timeshift(a06_event.filter,b06_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
-a06_c06_event.cor = timeshift(a06_event.filter,c06_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
-a06_d07_event.cor = timeshift(a06_event.filter,d07_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
+a06_b06_event.cor = timeshift(a06_event.filter,b06_event.filter,nmax,T,stl_flag,plotting,swin,twin,"","")
+a06_c06_event.cor = timeshift(a06_event.filter,c06_event.filter,nmax,T,stl_flag,plotting,swin,twin,"","")
+a06_d07_event.cor = timeshift(a06_event.filter,d07_event.filter,nmax,T,stl_flag,plotting,swin,twin,"","")
 #in between sensors (only 2 from profile c)
-a10_c08_event.cor = timeshift(a10_event.filter,c08_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
-a14_c14_event.cor = timeshift(a14_event.filter,c14_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
+a10_c08_event.cor = timeshift(a10_event.filter,c08_event.filter,nmax,T,stl_flag,plotting,swin,twin,"","")
+a14_c14_event.cor = timeshift(a14_event.filter,c14_event.filter,nmax,T,stl_flag,plotting,swin,twin,"","")
 #deep
-a18_b16_event.cor = timeshift(a18_event.filter,b16_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
-a18_c17_event.cor = timeshift(a18_event.filter,c17_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
-a18_d18_event.cor = timeshift(a18_event.filter,d18_event.filter,1,T,stl_flag,plotting,swin,twin,"","")
+a18_b16_event.cor = timeshift(a18_event.filter,b16_event.filter,nmax,T,stl_flag,plotting,swin,twin,"","")
+a18_c17_event.cor = timeshift(a18_event.filter,c17_event.filter,nmax,T,stl_flag,plotting,swin,twin,"","")
+a18_d18_event.cor = timeshift(a18_event.filter,d18_event.filter,nmax,T,stl_flag,plotting,swin,twin,"","")
 #correlation results
 results_event = rbind(cbind(Profile="shallow",a06_b06_event.cor,sensor="b", depth=0.6, event=event_name, snr=b06_event.snr),
 		cbind(Profile="shallow",a06_c06_event.cor,sensor="c", depth=0.6, event=event_name, snr=c06_event.snr),
@@ -333,6 +334,7 @@ return(results_event)
 #' @param limit_lag threshold for lagtime values; all values above limit_lag will be discarted.
 #' @param correct_cor,correct_lag logical. should these quality filters be applied (TRUE, default) or only be included into statistics (done always).
 #' @param plotting logical, should the results be plotted? (default is TRUE).
+#' @param nmax number of outputs of correlation.
 #'
 #' @details Output is a data.frame with mean values for correlation coeficients, lagtime and quality of signal to soise ratio.
 #' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
@@ -340,7 +342,7 @@ return(results_event)
 #' @export
 #' 
 
-ccf_multievent = function(events, mv_win, limit_cor, correct_cor=T, limit_lag, correct_lag=T, stl_flag, plotting=T){
+ccf_multievent = function(events, mv_win, nmax, limit_cor, correct_cor=T, limit_lag, correct_lag=T, stl_flag, plotting=T){
 
 	numberofevents = length(events[,1])
 	results_all = data.frame()
@@ -348,7 +350,8 @@ ccf_multievent = function(events, mv_win, limit_cor, correct_cor=T, limit_lag, c
 	for(i in 1:numberofevents){
 		event = c(events[i,1:2])
 		name=as.character(events[i,3])
-		res = ccf_events(event, name, mv_win, stl_flag, F)
+		#res = ccf_events(event, name, mv_win, nmax, stl_flag, F)
+		res = cclag_events(event, name, mv_win, nmax, F)
 		#filter results for bad snr AND count occurances of bad snr
 		res$snrtest = 1; res$cortest = 1; res$lagtest = 1
 		#filter bad SNR
@@ -385,11 +388,11 @@ ccf_multievent = function(events, mv_win, limit_cor, correct_cor=T, limit_lag, c
 	#calculate means and check stats of bad data quality (=snr > limit_snr)
 	cor_mean = summarise(results_ordered, cor_mean=mean(correlation, na.rm=T),cor_min=min(correlation, na.rm=T),cor_max=max(correlation, na.rm=T))
 	lag_mean = summarise(results_ordered, lag_mean=mean(lagtime, na.rm=T),lag_min=min(lagtime, na.rm=T),lag_max=max(lagtime, na.rm=T))
-	snrpass = summarise(results_ordered, SNRpass = sum(snrtest, na.rm=T))
-	corpass = summarise(results_ordered, CORpass = sum(cortest, na.rm=T))
-	lagpass = summarise(results_ordered, LAGpass = sum(lagtest, na.rm=T))
-	filtered_abs = summarise(results_ordered, filtered =  length(which(is.na(correlation)==T)))
-	used_abs = summarise(results_ordered, dataused =  numberofevents - length(which(is.na(correlation)==T)))
+	snrpass = summarise(results_ordered, SNRpass = sum(snrtest, na.rm=T)/nmax)
+	corpass = summarise(results_ordered, CORpass = sum(cortest, na.rm=T)/nmax)
+	lagpass = summarise(results_ordered, LAGpass = sum(lagtest, na.rm=T)/nmax)
+	filtered_abs = summarise(results_ordered, filtered =  length(which(is.na(correlation)==T))/nmax)
+	used_abs = summarise(results_ordered, dataused =  numberofevents - length(which(is.na(correlation)==T))/nmax)
 	#putting together with sensor meta data
 	results_mean = cbind(cor_mean[,1:2], lag_mean[,2], snrpass[,2], corpass[,2], lagpass[,2], filtered_abs[,2])
 	valuerange = cbind(cor_mean[,-2], lag_mean[,3:4])
@@ -582,3 +585,106 @@ cclag = function(data1,data2,nmax,normdata=T,mv_win=96,ccfplot=F,resplot=F,senso
     return(results)
 }
 ### end function cclag
+
+#' @title Event-based calulation of correlation coefficients, lagtimes and signal to noise ratios
+#'
+#' @description NEW VERSION of ccf_events !! which uses cclag() instead of timeshift()
+#' @description So far hard-coded for SM data of wettzell SGnew TS
+#'
+#' @param event vector of start and end date of event.
+#' @param event_name character, name of event (mainly used for the plot).
+#' @param mv_win length of window for moving average to smooth data in order to calculate signal to noise ratios.
+#' @param plots logical, should the results be plotted? (default is TRUE).
+#' @param nmax number of outputed results per correlation.
+#'
+#' @details Output is a data.frame with correlation coeficients, lagtime and signal to soise ratios for each sensor.
+#' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
+#' @examples
+#' @export
+#' 
+
+cclag_events = function(event, event_name, mv_win, nmax,plots=T,...){
+#load data
+#soil moisture
+load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/SGnew_filtered_6hourmean.rdata")
+beneathBuilding = SGnew.filter[,11:18] #get sensor beneath SG building
+besidesBuilding = SGnew.filter[,19:25] #get closest sensors outside SG building
+#GW data
+load(file="/home/mreich/server/hygra/DataWettzell/Groundwater/GW_Pegel_complete/BK14_corrected.rdata") #GW 14
+BK14.agg = aggregate(BK14, function(x) as.POSIXct(trunc(x, "hour"), tz = "GMT"), mean, na.rm=T)
+load(file="/home/mreich/server/hygra/DataWettzell/Groundwater/GW_Pegel_complete/BK3_corrected.rdata") #GW 14
+BK3.agg = aggregate(BK3, function(x) as.POSIXct(trunc(x, "hour"), tz = "GMT"), mean, na.rm=T)
+gw = merge(BK14.agg,BK3.agg=(BK3.agg-2.01),all=T,fill=NA)
+BK14_na = which(is.na(gw$BK14)==T)
+gw$BK14[BK14_na] = gw$BK3[BK14_na]
+BK14 = gw$BK14 * -1
+#precipitation
+load("/home/mreich/server/hygra/DataWettzell/Climate/30min_wettzell/clima30min_raw.rdata")
+precip = clima.raw$Prec_Sen1
+#trim ts to event period
+a06_event = besidesBuilding$mux43_05[which(index(besidesBuilding$mux43_05)==event[1]):which(index(besidesBuilding$mux43_05)==event[2])]
+a10_event = besidesBuilding$mux43_06[which(index(besidesBuilding$mux43_06)==event[1]):which(index(besidesBuilding$mux43_06)==event[2])]
+a14_event = besidesBuilding$mux43_07[which(index(besidesBuilding$mux43_07)==event[1]):which(index(besidesBuilding$mux43_07)==event[2])]
+a18_event = besidesBuilding$mux43_08[which(index(besidesBuilding$mux43_08)==event[1]):which(index(besidesBuilding$mux43_08)==event[2])]
+b06_event = beneathBuilding$mux44_02[which(index(beneathBuilding$mux44_02)==event[1]):which(index(beneathBuilding$mux44_02)==event[2])]
+b16_event = beneathBuilding$mux44_06[which(index(beneathBuilding$mux44_06)==event[1]):which(index(beneathBuilding$mux44_06)==event[2])]
+c06_event = beneathBuilding$mux44_01[which(index(beneathBuilding$mux44_01)==event[1]):which(index(beneathBuilding$mux44_01)==event[2])]
+c08_event = beneathBuilding$mux44_04[which(index(beneathBuilding$mux44_04)==event[1]):which(index(beneathBuilding$mux44_04)==event[2])]
+c14_event = beneathBuilding$mux44_05[which(index(beneathBuilding$mux44_05)==event[1]):which(index(beneathBuilding$mux44_05)==event[2])]
+c17_event = beneathBuilding$mux44_07[which(index(beneathBuilding$mux44_07)==event[1]):which(index(beneathBuilding$mux44_07)==event[2])]
+d07_event = beneathBuilding$mux44_03[which(index(beneathBuilding$mux44_03)==event[1]):which(index(beneathBuilding$mux44_03)==event[2])]
+d18_event = beneathBuilding$mux44_08[which(index(beneathBuilding$mux44_08)==event[1]):which(index(beneathBuilding$mux44_08)==event[2])]
+gw_event = BK14[which(index(BK14)==event[1]):which(index(BK14)==event[2])]
+precip_event = precip[which(index(precip)==event[1]):which(index(precip)==event[2])]
+#merging all dataset for a visual check
+ts_event = merge(a06_event,a10_event,a14_event,a18_event,b06_event,b16_event,c06_event,c08_event,c14_event,c17_event,d07_event,d18_event,gw_event,precip_event,all=T,fill=NA)
+ts_event$gw_event = na.approx(ts_event$gw_event)
+ts_event$precip_event = na.approx(ts_event$precip_event)
+colnames(ts_event) = c("a shallow","a middle high","a middle low","a deep","b shallow","b deep","c shallow","c middle high","c middle low","c deep","d shallow","d deep","gw","precip")
+if(plots==T) plot(ts_event, xlab="", main=event_name)
+#SNR: ratios and filtering
+#Correlation anaylsis
+plotccf = F
+plotresults = F
+normData = T
+#shallow
+a06_b06_event.cor = cclag(a06_event,b06_event,nmax,normData,mv_win,plotccf,plotresults,"a shallow","b shallow")
+a06_c06_event.cor = cclag(a06_event,c06_event,nmax,normData,mv_win,plotccf,plotresults,"a shallow","c shallow")
+a06_d07_event.cor = cclag(a06_event,d07_event,nmax,normData,mv_win,plotccf,plotresults,"a shallow","d shallow")
+#in between sensors 
+a10_c08_event.cor = cclag(a10_event,c08_event,nmax,normData,mv_win,plotccf,plotresults,"a middle high","c middle high")
+a14_c14_event.cor = cclag(a14_event,c14_event,nmax,normData,mv_win,plotccf,plotresults,"a middle low","c middle low")
+#deep
+a18_b16_event.cor = cclag(a18_event,b16_event,nmax,normData,mv_win,plotccf,plotresults,"a deep","b deep")
+a18_c17_event.cor = cclag(a18_event,c17_event,nmax,normData,mv_win,plotccf,plotresults,"a deep","c deep")
+a18_d18_event.cor = cclag(a18_event,d18_event,nmax,normData,mv_win,plotccf,plotresults,"a deep","d deep")
+#correlation results
+results_event = rbind(cbind(Profile="shallow",a06_b06_event.cor,sensor="b", depth=0.6, event=event_name),
+		cbind(Profile="shallow",a06_c06_event.cor,sensor="c", depth=0.6, event=event_name),
+		cbind(Profile="shallow",a06_d07_event.cor,sensor="d", depth=0.7, event=event_name),
+		cbind(Profile="middle high",a10_c08_event.cor,sensor="c", depth=0.9, event=event_name),
+		cbind(Profile="middle low",a14_c14_event.cor,sensor="c", depth=1.4, event=event_name),
+		cbind(Profile="deep",a18_b16_event.cor,sensor="b", depth=1.6, event=event_name),
+		cbind(Profile="deep",a18_c17_event.cor,sensor="c", depth=1.7, event=event_name),
+		cbind(Profile="deep",a18_d18_event.cor,sensor="d", depth=1.8, event=event_name))
+
+a06_event.snr = results_event$SNRdata1[which(results_event$Profile=="shallow")[1]]
+a10_event.snr = results_event$SNRdata1[which(results_event$Profile=="middle high")[1]]
+a14_event.snr = results_event$SNRdata1[which(results_event$Profile=="middle low")[1]]
+a18_event.snr = results_event$SNRdata1[which(results_event$Profile=="deep")[1]]
+#re-structure "results_event" to match other functions/code reading-structures
+results = cbind(results_event[,1],results_event[,5:9],results_event[,4])
+colnames(results) = c("Profile","correlation","lagtime","sensor","depth","event","snr")
+#print snr ratios for profile a
+print("SNR ratios for profile a:")
+print(paste("Event:",event_name,sep=" "))
+print(paste("a06:",a06_event.snr, sep=" "))
+print(paste("a10:",a10_event.snr, sep=" "))
+print(paste("a14:",a14_event.snr, sep=" "))
+print(paste("a18:",a18_event.snr, sep=" "))
+#return table of ccf results, together with other meta information and snr-ratios
+return(results)
+} #end of function
+
+
+

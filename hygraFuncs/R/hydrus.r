@@ -571,7 +571,7 @@ read_hydrus2d <- function(folder, timesteps, factorforprintout, plotting=F, time
  h_Mean = h_Mean[!duplicated(h_Mean$Timecut),]
  v_Mean = v_Mean[!duplicated(v_Mean$Timecut),]
  #joint datasets h_Mean and v_Mean
- h_v_Mean = inner_join(h_Mean, v_Mean, by="Time")
+ h_v_Mean = inner_join(h_Mean[-1,], v_Mean[-1,], by="Time")
  h_v_Mean = mutate(h_v_Mean, datetime=timestamps) #add real dates along with timesteps
 
  #generate sequence of vertical profiles to read out; each vertical profile needs their own sequence!!
@@ -691,7 +691,9 @@ for(i in 2:length(time_print)){
  #  h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value, colour=Boundary)) + geom_line() + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(colour=xcolors, face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates), colour="grey") + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
  #  h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(colour=xcolors, face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates),colour="grey") + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
  #h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates),colour=xcolors, size=2, alpha=0.5) + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
- h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(dates_times_print$Dates),colour=xcolors, size=2, alpha=0.5) + scale_x_datetime(breaks=dates_times_print$Dates, labels=date_format("%d-%m-%Y")) 
+ h_v_Mean.gg = ggplot(h_v_Mean.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + 
+	 geom_vline(xintercept = as.numeric(dates_times_print$Dates),color=rep(xcolors,2), size=2, alpha=0.5) +
+	 scale_x_datetime(breaks=dates_times_print$Dates, labels=date_format("%d-%m-%Y")) 
  
  choose.params.nodal = c("Head", "Moisture")
  units = data.frame(Parameters=choose.params.nodal, Unit=c("[m]", "[%]"))

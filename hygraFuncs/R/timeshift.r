@@ -329,7 +329,6 @@ return(results_event)
 #'
 #' @param events data.frame of events; each row limits one event, event[,1] = start dates, event[,2] = end dates, event[,3] = event name.
 #' @param mv_win length of window for moving average to smooth data in order to calculate signal to noise ratios.
-#' @param limit_snr is now hardcoded!! threshold for signal to noise ratio values; default value is 1 and should not be changed. see details. 
 #' @param limit_cor threshold for correlation coefficient values; all values below limit_cor will be discarted.
 #' @param limit_lag threshold for lagtime values; all values above limit_lag will be discarted.
 #' @param correct_cor,correct_lag logical. should these quality filters be applied (TRUE, default) or only be included into statistics (done always).
@@ -342,7 +341,7 @@ return(results_event)
 #' @export
 #' 
 
-ccf_multievent = function(events, mv_win, nmax, limit_cor, correct_cor=T, limit_lag, correct_lag=T, stl_flag, plotting=T){
+ccf_multievent = function(events, mv_win, nmax, limit_cor, correct_cor=T, limit_lag, correct_lag=T, plotting=T){
 
 	numberofevents = length(events[,1])
 	results_all = data.frame()

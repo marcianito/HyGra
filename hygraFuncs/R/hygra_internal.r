@@ -166,3 +166,21 @@ split_ts <- function(data.in,n){
   }
   return(ts.cut)  
 }
+
+
+#' @title Convert pf-values to suction potential (cm water column)
+#'
+#' @description 
+#'
+#' @param PF input PF-values. List, vector.
+#' ...
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+#' 
+PFtoSuc = function(PF){
+	suction = round(10^PF,2)
+	return(suction)
+}
+
+

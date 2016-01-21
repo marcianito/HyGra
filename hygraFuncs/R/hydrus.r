@@ -548,7 +548,8 @@ read_hydrus2d <- function(folder, timesteps, factorforprintout, plotting=F, time
 	# library(dplyrExtras)
 
  #path_hydrus = "/home/mreich/server/marvin_reich/hydrus2d/experiments/" 
- path_hydrus = "/home/mreich/server/hydro72/hydrus2d/experiments/" 
+ #path_hydrus = "/home/mreich/server/hydro72/hydrus2d/experiments/" 
+ path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus2d/experiments/" 
  setwd(paste(path_hydrus, folder, "/", sep="")) 
  #read hydrus 2d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
@@ -755,7 +756,8 @@ read_hydrus3d <- function(folder, timesteps, t_printout, plotting=F, timestamps,
 	# library(dplyr)
 	# library(dplyrExtras)
 
- path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/" 
+ #path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/" 
+ path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_experiments/" 
  setwd(paste(path_hydrus, folder, "/", sep="")) 
  #read hydrus 2d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="",skip=5, nrows=1, dec=".") #read grid meta data
@@ -926,4 +928,161 @@ for(i in 2:(t_printout+1)){
  grid.arrange(h_v_Mean.gg,nodal.gg,main=paste(folder,": vertical profile at x =", px, sep=" "))
 }
  return(print("Output stored in variables h_Mean, v_Mean, th_h_profiles and balance"))
+}
+
+#' @title Select time series of one modeled node
+#'
+#' @description test
+#'
+#' @param nodal_info_in input datasets. should be a data.frame
+#' @param loc_hor horizontal coordinate (in model coordintaes)
+#' @param loc_vert vertical coordinate (in model coordinates)
+#' @param sensorname name of sensor (for plotting and structuring)
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing
+#' 
+obsNode_hydrus = function(nodal_info_in, loc_hor, loc_vert,sensorname){
+nodal.filter = 	filter(nodal_info_in, grepl("Moisture",Parameters)) %>%
+			filter(x==loc_hor) %>%
+			filter(Depth==loc_vert) %>%
+			mutate(sensor = sensorname) %>%
+			mutate(type = "modeled") %>%
+ 			inner_join(dates_times,by="Time") #%>%
+			#arrange(Dates, sensor, type, value)
+		node_out = data.frame(datetime = nodal.filter$Dates, sensor = nodal.filter$sensor, value = nodal.filter$value, type = nodal.filter$type)
+		return(node_out)
+}
+
+
+
+#' @title Read Hydrus 2D observation node data 
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @param timesteps number of modeled timesteps
+#' @param t_printout string of dates of time series where informations are printed
+#' @param plotting indicate if standard parameters should be plotted (TRUE); default is FALSE
+#' @param timestamps vector of timestamps of the modeled timeseries. if not provided output time will be in counts of timesteps
+#' @param px number of horizontal node, where the vertical profile should be analyzed
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing
+#' 
+
+# read_hydrus2d_irregular <- function(folder, timesteps, vertical_nodes, horizontal_nodes, t_printout, plotting=F, timestamps, px){
+read_obsNode2d <- function(folder,realTime=T,startdate,plotting=F){
+ library(stringr)
+ #path_hydrus = "/home/mreich/server/hydro72/hydrus2d/experiments/" 
+ path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus2d/experiments/" 
+ setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #read mesh
+ nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
+ nodes_max = nodes_meta[1,2]
+ nodes_cords = read.table("MESHTRIA.TXT", header=F, skip=1 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+
+ #read obsveration node output file
+ num_lines = length(readLines("obsNod.out"))
+ obsNodeData = read.table(file="obsNod.out", header=T, skip=5, sep="",nrows=(num_lines-7), dec=".")
+ nodeNames.in = read.table(file="obsNod.out", header=F, skip=3, sep="",nrows=1)
+ nodeNames = vector()
+ for(i in 1:(length(nodeNames.in)/2)){
+ nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i*2], "[0-9]+"))
+ }
+ #select columns
+ theta_data = select(obsNodeData, contains("theta"))
+ #generate zoo-TS
+ if(realTime){
+ obsNodeTheta = zoo(theta_data, order.by=as.POSIXct(obsNodeData$time*3600, format="%H", origin=startdate))
+ }
+ else{obsNodeTheta = zoo(theta_data, order.by=obsNodeData$time)}
+ colnames(obsNodeTheta) = nodeNames
+ #offer possibility to get output as pivot-table with node coordinates!
+ obsNode.melt = melt(zootodf(obsNodeTheta), id="time", variable.name="node", value.name="theta")
+ #extract node cordinates from cords
+ ## dont know if this line works, but its something like this..!
+ #obsNode_cords = match(nodeNames, nodes_cords)
+ #obsNode.melt = inner_join(obsNode_cords, by=)
+ #...
+ if(plotting){
+	ggplot(obsNode.melt, aes(x=time, y=theta, colour=node)) + geom_line() + facet_grid(node~.)
+ }
+ return(obsNodeTheta)
+} # end function read obsNode data
+
+
+
+
+
+
+#' @title Plot modeled nodes and observed soil moisture sensors
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @param timesteps number of modeled timesteps
+#' @param t_printout string of dates of time series where informations are printed
+#' @param plotting indicate if standard parameters should be plotted (TRUE); default is FALSE
+#' @param timestamps vector of timestamps of the modeled timeseries. if not provided output time will be in counts of timesteps
+#' @param px number of horizontal node, where the vertical profile should be analyzed
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing
+
+obsNodePlot = function(filename, normdata=T, dim2d=T){
+#load SM; filtered at 6 hourly intervalls
+load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/SGnew_filtered_6hourmean.rdata")
+beneathBuilding = SGnew.filter[,11:18] #get sensor beneath SG building
+besidesBuilding = SGnew.filter[,19:25] #get closest sensors outside SG building
+colnames(beneathBuilding) = c("c shallow","b shallow","d shallow","c middle high","c middle low","b deep","c deep","d deep")
+colnames(besidesBuilding) = c("a02","a03","a04","a06","a10","a14","a18")
+
+SMsensors = merge.zoo(beneathBuilding,besidesBuilding, all=T, fill=NA)
+if(normdata){#normalize theta data
+SMsensors.norm = zoo(apply(coredata(SMsensors),2,normalize), order.by=index(SMsensors))
+SMsensors.melt = cbind(melt(zootodf(SMsensors.norm), id="time",variable.name="sensor"),type="observed")
+}else{
+SMsensors.melt = cbind(melt(zootodf(SMsensors), id="time",variable.name="sensor"),type="observed")
+}
+
+#load precipitation TS
+load("/home/mreich/server/hygra/DataWettzell/Climate/30min_wettzell/clima30min_raw.rdata")
+precip = clima.raw$Prec_Sen1
+precip.df = zootodf(precip); colnames(precip.df)[2] = "Precip"
+precip.melt = cbind(melt(precip.df, id="time", variable.name="sensor"), type="observed")
+#adjust time series length to SM observations
+precip.melt = filter(precip.melt, time > as.POSIXct("2010-03-10 16:00:00"))
+
+#read hydrus observation nodes
+if(dim2d) folpath = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus2_out/"
+else folpath = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/"
+nodes=load(file=paste(folpath, filename, sep=""))
+if(normdata){#normalize theta data
+nodes.norm = zoo(apply(coredata(get(nodes)),2,normalize), order.by=index(get(nodes)))
+nodes.melt = cbind(melt(zootodf(nodes.norm), id="time", variable.name="node"), type="modeled")
+}else{
+nodes.melt = cbind(melt(zootodf(get(nodes)), id="time", variable.name="node"), type="modeled")
+}
+#IMPORTANT!!
+#sensor names have to be in the ORDER of node number names from hydrus
+#this is somewhat caotic due to internal hydrus numbering
+#this is for 2D only!!
+if(dim2d) sensors_nodes = data.frame(sensor = c("b shallow","b deep","c shallow","c middle high","c middle low","d shallow","d deep","a02","a03","a04","a06","a10","a18","a14","c deep"), node = colnames(get(nodes)))
+#3d
+else sensors_nodes = data.frame(sensor = c("a04","a02","a03","a06","a10","a14","b shallow","b deep","c shallow","c middle high","c middle low","d shallow","a deep","c deep","d deep"), node = colnames(get(nodes)))
+
+nodes.melt = inner_join(nodes.melt, sensors_nodes, by="node") %>%
+		select(-node) %>%
+		select(time, sensor, value, type)
+#without precipitation
+#SMdata = rbind(SMsensors.melt, nodes.melt)
+#with precipitation
+SMdata = rbind(SMsensors.melt, nodes.melt, precip.melt)
+SMdata.gg = ggplot(SMdata, aes(x=time, y=value, colour=type)) + geom_line() + ylab("Theta [%VWC]") + xlab("") +
+		facet_grid(sensor~., scale="free_y")
+#save plot
+#png(file="/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/compare/NORMALIZED_SMobs-mod_ts49025_2d.png", width=1800, height=1200, res=100)
+return(SMdata.gg)
+#dev.off()
 }

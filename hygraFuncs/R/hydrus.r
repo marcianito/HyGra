@@ -129,6 +129,7 @@ hydrus_lysidrain_ben <- function(date.in, date.out, freq="hour", area=1,winlengt
       }
       else {return(drain.agg)}
 }
+
 #' @title Data preparation for HYDRUS
 #'
 #' @description Create lysimeter drainage time series
@@ -177,6 +178,7 @@ hydrus_lysidrain <- function(date.in, date.out, freq="hour", area=1, aszoo=F){
       }
       else {return(drain.agg)}
 }
+
 #' @title Data preparation for HYDRUS
 #'
 #' @description Create precipitation time series
@@ -260,6 +262,7 @@ hydrus_sm <- function(date.in, date.out, name, datacol, freq="hour",aszoo=F){
       }
       else {return(sm)}
 }
+
 #' @title Read Hydrus 1D output data
 #'
 #' @description test
@@ -274,7 +277,6 @@ hydrus_sm <- function(date.in, date.out, name, datacol, freq="hour",aszoo=F){
 #' @details missing
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
-#' 
 
 read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plotting=F, timestamps){
 	# library(dplyr)
@@ -395,7 +397,6 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
 #' @details missing
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
-#' 
 
 read_hydrus2d_rect <- function(folder, timesteps, vertical_nodes, horizontal_nodes, t_printout, plotting=F, timestamps, px){
 	# library(dplyr)
@@ -526,7 +527,6 @@ read_hydrus2d_rect <- function(folder, timesteps, vertical_nodes, horizontal_nod
  return(print("Output stored in variables h_Mean, v_Mean, th_h_profiles and balance"))
 }
 
-
 #' @title Read Hydrus 2D output data
 #'
 #' @description test
@@ -540,7 +540,6 @@ read_hydrus2d_rect <- function(folder, timesteps, vertical_nodes, horizontal_nod
 #' @details missing
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
-#' 
 
 # read_hydrus2d_irregular <- function(folder, timesteps, vertical_nodes, horizontal_nodes, t_printout, plotting=F, timestamps, px){
 read_hydrus2d <- function(folder, timesteps, factorforprintout, plotting=F, timestamps, profile_loc, vertical=T){
@@ -736,7 +735,6 @@ for(i in 2:length(time_print)){
  return(print("Output stored in variables h_Mean, v_Mean, th_h_profiles and balance"))
 }
 
-
 #' @title Read Hydrus 3D output data
 #'
 #' @description test
@@ -750,7 +748,6 @@ for(i in 2:length(time_print)){
 #' @details missing
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
-#' 
 
 read_hydrus3d <- function(folder, timesteps, t_printout, plotting=F, timestamps, px){
 	# library(dplyr)
@@ -941,7 +938,7 @@ for(i in 2:(t_printout+1)){
 #' @details missing
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
-#' 
+
 obsNode_hydrus = function(nodal_info_in, loc_hor, loc_vert,sensorname){
 nodal.filter = 	filter(nodal_info_in, grepl("Moisture",Parameters)) %>%
 			filter(x==loc_hor) %>%
@@ -954,22 +951,17 @@ nodal.filter = 	filter(nodal_info_in, grepl("Moisture",Parameters)) %>%
 		return(node_out)
 }
 
-
-
 #' @title Read Hydrus 2D observation node data 
 #'
 #' @description test
 #'
 #' @param folder foldername of project to read
-#' @param timesteps number of modeled timesteps
-#' @param t_printout string of dates of time series where informations are printed
-#' @param plotting indicate if standard parameters should be plotted (TRUE); default is FALSE
-#' @param timestamps vector of timestamps of the modeled timeseries. if not provided output time will be in counts of timesteps
-#' @param px number of horizontal node, where the vertical profile should be analyzed
+#' @param realTime logical. Output in UTC (TRUE; default) or model time steps (FALSE).
+#' @param startdate starting date for output in UTC. Format is POSIXct.
+#' @param plotting do you want node time series plotted (default is FALSE).
 #' @details missing
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
-#' 
 
 # read_hydrus2d_irregular <- function(folder, timesteps, vertical_nodes, horizontal_nodes, t_printout, plotting=F, timestamps, px){
 read_obsNode2d <- function(folder,realTime=T,startdate,plotting=F){
@@ -1011,23 +1003,15 @@ read_obsNode2d <- function(folder,realTime=T,startdate,plotting=F){
  return(obsNodeTheta)
 } # end function read obsNode data
 
-
-
-
-
-
 #' @title Plot modeled nodes and observed soil moisture sensors
 #'
-#' @description test
+#' @description plot time series of modeled observation nodes and measured soil moisture. This works with both hydrus 2D and 3D models.
 #'
-#' @param folder foldername of project to read
-#' @param timesteps number of modeled timesteps
-#' @param t_printout string of dates of time series where informations are printed
-#' @param plotting indicate if standard parameters should be plotted (TRUE); default is FALSE
-#' @param timestamps vector of timestamps of the modeled timeseries. if not provided output time will be in counts of timesteps
-#' @param px number of horizontal node, where the vertical profile should be analyzed
-#' @details missing
-#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @param filename filename of time series of the observation nodes (see details).
+#' @param normdata logical. compare absolute (FALSE) or normalized values (TRUE; default).
+#' @param dim2d TRUE for 2d, FALSE for 3D input
+#' @details time series of observation nodes can be extracted and saved using function read_obsNode2d() or read_obsNode3d()
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
 obsNodePlot = function(filename, normdata=T, dim2d=T){

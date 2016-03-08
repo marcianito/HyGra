@@ -66,7 +66,7 @@ r2macm=9^2 #bei 2.5 x 2.5 cellsizes ~= 1000 m
 sg_gridRCL=array(0, dim=c(Row,Col,L))
 # missing nested approach with forsberg and pointmass!!
 ##gravity after macmillan
-print("calculating gravity ....patience..")
+print("calculating gravity components....patience..")
 for (l in 1:L){
       for (cc in 1:Col){
         for (rr in 1:Row){

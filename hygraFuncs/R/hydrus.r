@@ -1003,6 +1003,61 @@ read_obsNode2d <- function(folder,realTime=T,startdate,plotting=F){
  return(obsNodeTheta)
 } # end function read obsNode data
 
+#' @title Read Hydrus 3D observation node data 
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @param realTime logical. Output in UTC (TRUE; default) or model time steps (FALSE).
+#' @param startdate starting date for output in UTC. Format is POSIXct.
+#' @param plotting do you want node time series plotted (default is FALSE).
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing
+
+read_obsNode3d <- function(folder,realTime=T,startdate,plotting=F){
+ #library(stringr)
+ #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_experiments/" 
+ path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/" 
+ setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #read mesh
+ nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".", skip=5) #read grid meta data
+ nodes_max = nodes_meta[1,1]
+ nodes_cords = read.table("MESHTRIA.TXT", header=F, skip=7 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+
+ #read obsveration node output file
+ num_lines = length(readLines("ObsNod.out"))
+ obsNodeData = read.table(file="ObsNod.out", header=T, skip=5, sep="",nrows=(num_lines-7), dec=".")
+ nodeNames.in = read.table(file="ObsNod.out", header=F, skip=3, sep="",nrows=1)
+ #this 2d routine doesnt work because observation nodes in hydrus 3d are named WRONG (only ***)
+ #so the alternative are dummy_names:
+ #in the order of appearance, numbered trough
+ #nodeNames = vector()
+ #for(i in 1:(length(nodeNames.in)/2)){
+ #nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i*2], "[0-9]+"))
+ #}
+ nodeNames = seq(1,length(nodeNames.in))
+ #select columns
+ theta_data = select(obsNodeData, contains("theta"))
+ #generate zoo-TS
+ if(realTime){
+ obsNodeTheta = zoo(theta_data, order.by=as.POSIXct(obsNodeData$time*3600, format="%H", origin=startdate))
+ }
+ else{obsNodeTheta = zoo(theta_data, order.by=obsNodeData$time)}
+ colnames(obsNodeTheta) = nodeNames
+ #offer possibility to get output as pivot-table with node coordinates!
+ obsNode.melt = melt(zootodf(obsNodeTheta), id="time", variable.name="node", value.name="theta")
+ #extract node cordinates from cords
+ ## dont know if this line works, but its something like this..!
+ #obsNode_cords = match(nodeNames, nodes_cords)
+ #obsNode.melt = inner_join(obsNode_cords, by=)
+ #...
+ if(plotting){
+	ggplot(obsNode.melt, aes(x=time, y=theta, colour=node)) + geom_line() + facet_grid(node~.)
+ }
+ return(obsNodeTheta)
+} # end function read obsNode data
+
 #' @title Plot modeled nodes and observed soil moisture sensors
 #'
 #' @description plot time series of modeled observation nodes and measured soil moisture. This works with both hydrus 2D and 3D models.
@@ -1016,6 +1071,7 @@ read_obsNode2d <- function(folder,realTime=T,startdate,plotting=F){
 
 obsNodePlot = function(filename, normdata=T, dim2d=T){
 #load SM; filtered at 6 hourly intervalls
+#change for cluster version to maintain this file locally
 load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/SGnew_filtered_6hourmean.rdata")
 beneathBuilding = SGnew.filter[,11:18] #get sensor beneath SG building
 besidesBuilding = SGnew.filter[,19:25] #get closest sensors outside SG building
@@ -1038,6 +1094,7 @@ precip.melt = cbind(melt(precip.df, id="time", variable.name="sensor"), type="ob
 #adjust time series length to SM observations
 precip.melt = filter(precip.melt, time > as.POSIXct("2010-03-10 16:00:00"))
 
+##!! change file path for cluster version; exclude 2d option
 #read hydrus observation nodes
 if(dim2d) folpath = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus2_out/"
 else folpath = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/"
@@ -1070,3 +1127,235 @@ SMdata.gg = ggplot(SMdata, aes(x=time, y=value, colour=type)) + geom_line() + yl
 return(SMdata.gg)
 #dev.off()
 }
+
+#' @title Read Hydrus 3D theta / head data
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @param timestamps vector of timestamps of the modeled timeseries.
+#' @param datatype character. possible values are: "moisture", "phead".
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+read_hydrus3d_data = function(folder, timestamps, datatype="moisture"){
+
+ #path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/" 
+ path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_expRuns/" 
+ #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_experiments/" 
+ setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #read hydrus 2d output files
+ nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="",skip=5, nrows=1, dec=".") #read grid meta data
+ nodes_max = nodes_meta[1,1]
+ grid_cords = read.table("MESHTRIA.TXT", header=T, skip=6 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+
+#read output data via bash due to speed! 
+system("sed -n '/^[[:space:]]*[T]/p' TH.TXT > bash_time.out")
+#system("sed -n '/^[[:space:]]*[0-9]/p' TH.TXT > bash_dataTH.out")
+#system("sed -n '/^[[:space:]]*-*[0-9]/p' H.TXT > bash_dataH.out")
+
+printout = read.table(file="bash_time.out", dec=".")
+#data.th = scan(file="bash_dataTH.out", dec=".")
+#data.h = scan(file="bash_dataH.out", dec=".")
+time_print = printout[,3]
+timestamps_select = c(timestamps[1]-3600,timestamps[time_print])
+#select output data: soil moisture / pressure head
+switch(datatype,
+       moisture = {
+	system("sed -n '/^[[:space:]]*[0-9]/p' TH.TXT > bash_dataTH.out")
+	data.th = scan(file="bash_dataTH.out", dec=".")
+	data_nodes = data.frame(Timestep=rep(time_print, each=nodes_max),
+		      Time = rep(timestamps_select, each=nodes_max),
+		      x=rep(grid_cords$x, length(time_print)),
+		      y=rep(grid_cords$y, length(time_print)),
+		      Depth=rep(grid_cords$z, length(time_print)),
+		      dataraw=data.th) #soil moisture
+       },
+       phead = {
+	system("sed -n '/^[[:space:]]*-*[0-9]/p' H.TXT > bash_dataH.out")
+	data.h = scan(file="bash_dataH.out", dec=".")
+	data_nodes = data.frame(Timestep=rep(time_print, each=nodes_max),
+		      Time = rep(timestamps_select, each=nodes_max),
+		      x=rep(grid_cords$x, length(time_print)),
+		      y=rep(grid_cords$y, length(time_print)),
+		      Depth=rep(grid_cords$z, length(time_print)),
+		      dataraw=data.h) #soil moisture
+       }) #end switch
+return(data_nodes)
+} #end function
+
+
+#' @title Read Hydrus 3D theta / head data version FOR BIG DATA
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @param timestamps vector of timestamps of the modeled timeseries.
+#' @param datatype character. possible values are: "moisture", "phead".
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+read_hydrus3d_dataBD = function(folder, timestamps, datatype="moisture"){
+
+#library(bigmemory)
+ path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/" 
+ #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_expRuns/" 
+ setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #read hydrus 2d output files
+ nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="",skip=5, nrows=1, dec=".") #read grid meta data
+ nodes_max = nodes_meta[1,1]
+ grid_cords = read.table("MESHTRIA.TXT", header=T, skip=6 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+
+#read output data via bash due to speed! 
+#print time information
+#system("sed -n '/^[[:space:]]*[T]/p' TH.TXT > bash_time.out")
+#cut only last year values
+#system("tail -n 8760 bash_time.out > bash_time_lastyear.out")
+
+#printout = read.table(file="bash_time.out", dec=".")
+#printout = read.table(file="bash_time_lastyear.out", dec=".")
+printout = read.table(file="bash_time_example.out", dec=".")
+time_print = printout[,3]
+timestamps_select = timestamps[time_print]
+#timestamps_select = c(timestamps[1]-3600,timestamps[time_print])
+#select output data: soil moisture / pressure head
+switch(datatype,
+       moisture = {
+	#data.th = scan(file="bash_dataTH_lastyear.out", dec=".")
+	data.th = scan(file="bash_dataTH_example.out", dec=".")
+	data_nodes = data.frame(Timestep=rep(time_print, each=nodes_max),
+		      Time = rep(timestamps_select, each=nodes_max),
+		      x=rep(grid_cords$x, length(time_print)),
+		      y=rep(grid_cords$y, length(time_print)),
+		      Depth=rep(grid_cords$z, length(time_print)),
+		      dataraw=data.th) #soil moisture
+       },
+       phead = {
+	data.h = scan(file="bash_dataH_lastyear.out", dec=".")
+	data_nodes = data.frame(Timestep=rep(time_print, each=nodes_max),
+		      Time = rep(timestamps_select, each=nodes_max),
+		      x=rep(grid_cords$x, length(time_print)),
+		      y=rep(grid_cords$y, length(time_print)),
+		      Depth=rep(grid_cords$z, length(time_print)),
+		      dataraw=data.h) #soil moisture
+       }) #end switch
+return(data_nodes)
+} #end function
+
+#' @title Read Hydrus 3D grid coordinates 
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+read_3dgrid = function(folder){
+
+ path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/" 
+ #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_experiments/" 
+ setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #read hydrus 2d output files
+ nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="",skip=5, nrows=1, dec=".") #read grid meta data
+ nodes_max = nodes_meta[1,1]
+ grid_cords = read.table("MESHTRIA.TXT", header=T, skip=6 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+
+ return(grid_cords)
+} #end function
+
+#' @title Interpolate 3D nodes to regular grid
+#'
+#' @description interpolate hydrus mesh output to regular grid
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+nodestogrid = function(grid_cords, data_input, grid_discr, depth_split){
+library(gstat)
+
+#generate regular-spaced grid
+grid.x <- seq(min(grid_cords$x), max(grid_cords$x), by=grid_discr[1])
+grid.y <- seq(min(grid_cords$y), max(grid_cords$y), by=grid_discr[2])
+grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr[3])
+#grid.z <- seq(min(grid_cords$z), max(grid_cords$z), by=grid_discr[3])
+grid.xyz <- expand.grid(x=grid.x, y=grid.y, Depth=grid.z)
+
+#filter input data for the corrsponding horizon of the model (in z-direction)
+#this is done for faster computing:
+#splitting up dataset allows different discretizations of each horizon
+#data_input = 
+
+#interpolate and "stack" for each timestep
+data_grid=data.frame()
+for(i in unique(data_input$Timestep)){
+data_in = filter(data_input, Timestep==i) #filter for one timestep
+#interpolate data to new grid
+idw.gstat = gstat(formula = dataraw ~ 1, locations = ~ x + y + Depth, data = data_in, nmax = 10, set = list(idp = 2))
+#idw.gstat = gstat(formula = dataraw ~ 1, locations = ~ x + y + Depth, data = data_in, nmax = 10, nmin=3, maxdist=1.1, set = list(idp = 2))
+data_convert <- predict(idw.gstat, grid.xyz)
+data_interpolated = cbind(Timestep = i, data_convert[,-5])
+#colnames(data_interpolated)[5] = "data"
+#data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x","y"), measure.vars=c("data"), variable.name = "Parameters")
+data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x","y"))
+#join data together in the loop
+data_grid = rbind(data_grid, data_interpolated.melt)
+}
+return(data_grid)
+} #end function
+
+
+#' @title PARALLEL Interpolate 3D nodes to regular grid
+#'
+#' @description interpolate hydrus mesh output to regular grid
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+nodestogridPP = function(grid_cords, data_input, grid_discr, depth_split){
+library(gstat)
+library(foreach)
+library(doParallel, quiet=T)
+
+#generate regular-spaced grid
+grid.x <- seq(min(grid_cords$x), max(grid_cords$x), by=grid_discr[1])
+grid.y <- seq(min(grid_cords$y), max(grid_cords$y), by=grid_discr[2])
+grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr[3])
+#grid.z <- seq(min(grid_cords$z), max(grid_cords$z), by=grid_discr[3])
+grid.xyz <- expand.grid(x=grid.x, y=grid.y, Depth=grid.z)
+
+#filter input data for the corrsponding horizon of the model (in z-direction)
+#this is done for faster computing:
+#splitting up dataset allows different discretizations of each horizon
+#data_input = 
+
+#settings for parallel computing
+cores = detectCores() #detect cores
+cluster = makeCluster(cores) #create cluster
+registerDoParallel(cluster) #register cluster
+
+#interpolate and "stack" for each timestep
+grid_interpolated = foreach(i=unique(data_input$Timestep),.combine=rbind,.packages=c('dplyr','gstat','reshape2')) %dopar% {
+data_in = filter(data_input, Timestep==i) #filter for one timestep
+#interpolate data to new grid
+idw.gstat = gstat(formula = dataraw ~ 1, locations = ~ x + y + Depth, data = data_in, nmax = 10, set = list(idp = 2))
+data_convert <- predict(idw.gstat, grid.xyz)
+data_interpolated = cbind(Timestep = i, data_convert[,-5])
+data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x","y"))
+}
+
+stopCluster(cluster)
+#return(data_grid)
+return(grid_interpolated)
+} #end function
+

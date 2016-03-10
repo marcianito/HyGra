@@ -1128,6 +1128,58 @@ return(SMdata.gg)
 #dev.off()
 }
 
+
+#' @title Read Hydrus 2D theta / head data
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @param timestamps vector of timestamps of the modeled timeseries.
+#' @param datatype character. possible values are: "moisture", "phead".
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+read_hydrus2d_data = function(folder, timestamps, datatype="moisture"){
+
+ path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus2_out/" 
+ #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_expRuns/" 
+ setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #read hydrus 2d output files
+ nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
+ nodes_max = nodes_meta[1,2]
+ grid_cords = read.table("MESHTRIA.TXT", header=F, skip=1 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+ colnames(grid_cords) = c("n","x","z")
+
+#read output data via bash due to speed! 
+system("sed -n '/^[[:space:]]*[T]/p' TH.TXT > bash_time.out")
+printout = read.table(file="bash_time.out", dec=".")
+time_print = printout[,3]
+timestamps_select = c(timestamps[1]-3600,timestamps[time_print])
+#timestamps_select = timestamps[time_print]
+#select output data: soil moisture / pressure head
+switch(datatype,
+       moisture = {
+	system("sed -n '/^[[:space:]]*[0-9]/p' TH.TXT > bash_dataTH.out")
+	data.th = scan(file="bash_dataTH.out", dec=".")
+	data_nodes = data.frame(Timestep=rep(time_print, each=nodes_max),
+		      Time = rep(timestamps_select, each=nodes_max),
+		      x=rep(grid_cords$x, length(time_print)),
+		      Depth=rep(grid_cords$z, length(time_print)),
+		      dataraw=data.th) #soil moisture
+       },
+       phead = {
+	system("sed -n '/^[[:space:]]*-*[0-9]/p' H.TXT > bash_dataH.out")
+	data.h = scan(file="bash_dataH.out", dec=".")
+	data_nodes = data.frame(Timestep=rep(time_print, each=nodes_max),
+		      Time = rep(timestamps_select, each=nodes_max),
+		      x=rep(grid_cords$x, length(time_print)),
+		      Depth=rep(grid_cords$z, length(time_print)),
+		      dataraw=data.h) #soil moisture
+       }) #end switch
+return(data_nodes)
+} #end function
+
 #' @title Read Hydrus 3D theta / head data
 #'
 #' @description test
@@ -1145,7 +1197,7 @@ read_hydrus3d_data = function(folder, timestamps, datatype="moisture"){
  path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_expRuns/" 
  #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_experiments/" 
  setwd(paste(path_hydrus, folder, "/", sep="")) 
- #read hydrus 2d output files
+ #read hydrus 3d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="",skip=5, nrows=1, dec=".") #read grid meta data
  nodes_max = nodes_meta[1,1]
  grid_cords = read.table("MESHTRIA.TXT", header=T, skip=6 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
@@ -1190,41 +1242,28 @@ return(data_nodes)
 #'
 #' @description test
 #'
-#' @param folder foldername of project to read
+#' @param filenames character vector of filenames for model output (ordered): time, soil moisture, pressure head.
 #' @param timestamps vector of timestamps of the modeled timeseries.
 #' @param datatype character. possible values are: "moisture", "phead".
 #' @details missing
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-read_hydrus3d_dataBD = function(folder, timestamps, datatype="moisture"){
+read_hydrus3d_dataBD = function(filenames, timestamps, datatype="moisture"){
 
-#library(bigmemory)
- path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/" 
- #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_expRuns/" 
- setwd(paste(path_hydrus, folder, "/", sep="")) 
- #read hydrus 2d output files
+ #read hydrus 3d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="",skip=5, nrows=1, dec=".") #read grid meta data
  nodes_max = nodes_meta[1,1]
  grid_cords = read.table("MESHTRIA.TXT", header=T, skip=6 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
 
-#read output data via bash due to speed! 
-#print time information
-#system("sed -n '/^[[:space:]]*[T]/p' TH.TXT > bash_time.out")
-#cut only last year values
-#system("tail -n 8760 bash_time.out > bash_time_lastyear.out")
-
-#printout = read.table(file="bash_time.out", dec=".")
-#printout = read.table(file="bash_time_lastyear.out", dec=".")
-printout = read.table(file="bash_time_example.out", dec=".")
+printout = read.table(file=filenames[1], dec=".")
 time_print = printout[,3]
 timestamps_select = timestamps[time_print]
 #timestamps_select = c(timestamps[1]-3600,timestamps[time_print])
 #select output data: soil moisture / pressure head
 switch(datatype,
        moisture = {
-	#data.th = scan(file="bash_dataTH_lastyear.out", dec=".")
-	data.th = scan(file="bash_dataTH_example.out", dec=".")
+	data.th = scan(file=filenames[2], dec=".")
 	data_nodes = data.frame(Timestep=rep(time_print, each=nodes_max),
 		      Time = rep(timestamps_select, each=nodes_max),
 		      x=rep(grid_cords$x, length(time_print)),
@@ -1233,7 +1272,7 @@ switch(datatype,
 		      dataraw=data.th) #soil moisture
        },
        phead = {
-	data.h = scan(file="bash_dataH_lastyear.out", dec=".")
+	data.h = scan(file=filenames[3], dec=".")
 	data_nodes = data.frame(Timestep=rep(time_print, each=nodes_max),
 		      Time = rep(timestamps_select, each=nodes_max),
 		      x=rep(grid_cords$x, length(time_print)),
@@ -1248,20 +1287,37 @@ return(data_nodes)
 #'
 #' @description test
 #'
-#' @param folder foldername of project to read
+#' @param NA no parameter has to be inputed
 #' @details missing
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-read_3dgrid = function(folder){
+read_3dgrid = function(){
 
- path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/" 
- #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_experiments/" 
- setwd(paste(path_hydrus, folder, "/", sep="")) 
- #read hydrus 2d output files
+ #read hydrus 3d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="",skip=5, nrows=1, dec=".") #read grid meta data
  nodes_max = nodes_meta[1,1]
  grid_cords = read.table("MESHTRIA.TXT", header=T, skip=6 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+
+ return(grid_cords)
+} #end function
+
+#' @title Read Hydrus 2D grid coordinates 
+#'
+#' @description test
+#'
+#' @param NA no parameter has to be inputed
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+read_2dgrid = function(){
+
+ #read hydrus 2d output files
+ nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
+ nodes_max = nodes_meta[1,2]
+ grid_cords = read.table("MESHTRIA.TXT", header=F, skip=1 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+ colnames(grid_cords)=c("n","x","z")
 
  return(grid_cords)
 } #end function
@@ -1310,6 +1366,50 @@ data_grid = rbind(data_grid, data_interpolated.melt)
 return(data_grid)
 } #end function
 
+#' @title PARALLEL Interpolate 2D nodes to regular grid
+#'
+#' @description interpolate hydrus mesh output to regular grid
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+nodestogrid_2dPP = function(grid_cords, data_input, grid_discr, depth_split){
+library(gstat)
+library(foreach)
+library(doParallel, quiet=T)
+
+#generate regular-spaced grid
+grid.x <- seq(min(grid_cords$x), max(grid_cords$x), by=grid_discr[1])
+grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr[2])
+grid.xz <- expand.grid(x=grid.x, Depth=grid.z)
+
+#filter input data for the corrsponding horizon of the model (in z-direction)
+#this is done for faster computing:
+#splitting up dataset allows different discretizations of each horizon
+#data_input = 
+
+#settings for parallel computing
+cores = detectCores() #detect cores
+cluster = makeCluster(cores) #create cluster
+registerDoParallel(cluster) #register cluster
+
+#interpolate and "stack" for each timestep
+grid_interpolated = foreach(i=unique(data_input$Timestep),.combine=rbind,.packages=c('dplyr','gstat','reshape2')) %dopar% {
+data_in = filter(data_input, Timestep==i) #filter for one timestep
+#interpolate data to new grid
+idw.gstat = gstat(formula = dataraw ~ 1, locations = ~ x + Depth, data = data_in, nmax = 10, set = list(idp = 2))
+data_convert <- predict(idw.gstat, grid.xz)
+data_interpolated = cbind(Timestep = i, data_convert[,-4])
+data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x"))
+}
+
+stopCluster(cluster)
+return(grid_interpolated)
+} #end function
 
 #' @title PARALLEL Interpolate 3D nodes to regular grid
 #'
@@ -1355,7 +1455,105 @@ data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x
 }
 
 stopCluster(cluster)
-#return(data_grid)
 return(grid_interpolated)
 } #end function
 
+
+#' @title Calculate delta values of 2 grids at different time steps
+#' 
+#' @description 2D
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+grid2d_difs = function(data1,data2,data3,timestep, valmin, valmax){
+#active for all 3 compartments
+#grid_difs = function(data1,data2,data3,timestep){
+	ind = which(data1$Timestep == timestep)
+	TSnext = data1$Timestep[(last(ind)+1)]
+	#ind2 = which(data2$Timestep == timestep)
+	#TSnext2 = data2$Timestep[(last(ind2)+1)]
+	#TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext))
+	TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext),filter(data3, Timestep == TSnext))
+	#TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)))
+	TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)),filter(data3, Timestep == (timestep)))
+	grid_dif = cbind(TS1[,-5],DifValue=(TS2$value - TS1$value))
+	grid_dif$dTheta = ifelse(grid_dif$DifValue >= valmax, "increase > ThetaMax", ifelse(grid_dif$DifValue <= valmin, "decrease < ThetaMin", "umbrella"))
+return(grid_dif)
+}
+
+#' @title Calculate delta values of 2 grids at different time steps
+#' 
+#' @description 3D
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+grid3d_difs = function(data1,data2,timestep, valmin, valmax){
+#active for all 3 compartments
+#grid_difs = function(data1,data2,data3,timestep){
+	ind = which(data1$Timestep == timestep)
+	TSnext = data1$Timestep[(last(ind)+1)]
+	#ind2 = which(data2$Timestep == timestep)
+	#TSnext2 = data2$Timestep[(last(ind2)+1)]
+	TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext))
+	#TS2 = rbind(filter(data1, Timestep == (timestep+1)),filter(data2, Timestep == (timestep+1)),filter(data3, Timestep == (timestep+1)))
+	TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)))
+	#TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)),filter(data3, Timestep == (timestep)))
+	grid_dif = cbind(TS1[,-6],DifValue=(TS2$value - TS1$value))
+	grid_dif$dTheta = ifelse(grid_dif$DifValue >= valmax, "increase > ThetaMax", ifelse(grid_dif$DifValue <= valmin, "decrease < ThetaMin", "umbrella"))
+return(grid_dif)
+}
+
+
+#' @title make a sequence (movie) from model results
+#' 
+#' @description or differences between timesteps or absolute values each timestep
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+ModOut_animate = function(input1,input2,counter,type,outputname,valmax,valmin){
+#later also add 3rd input!! (gneiss)
+#ModOut_animate = function(input1,input2,input3,counter,type,outputname){
+msg = "Starting to create Images.."
+print(msg)
+saveGIF({
+	switch(type,
+		difference = {
+		for(i in counter){
+		if(i == max(counter)) break
+		print(
+		ggplot(data=grid3d_difs(input1,input2,i,valmin,valmax), aes(x=x, y=Depth)) + geom_tile(aes(fill=dTheta, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]") + ggtitle(paste("Timestep: ",i,sep="")) +
+		scale_fill_manual(values=c("increase > ThetaMax"="#151B54","decrease < ThetaMin"="#8C001A","umbrella"="white"))
+		) #end print
+		}},
+		real = {
+		for(i in counter){
+		if(i == max(counter)) break
+		print(
+		ggplot(data=rbind(filter(SMgrid_ah, Timestep == i),filter(SMgrid_bvcv, Timestep == i)), aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",i,sep="")) + 
+		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"), breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
+		) #end print
+		}}
+	)
+	},
+	movie.name=paste("./",outputname,".gif",sep=""), clean=T, interval=0.05, ani.width=600, ani.height=600)
+	#movie.name="SMgrid_test.gif", clean=T, interval=0.05, ani.width=600, ani.height=600)
+
+#return(print(paste("finished: ",outputname,".gif"," generated in working directory",sep="")))
+fin="finished!"
+return(fin)
+}

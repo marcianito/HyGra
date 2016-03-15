@@ -1607,6 +1607,10 @@ switch(type,
 		real = {
 		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",input$Timestep," - Y= ",unique(input$y),sep="")) + 
 		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"), breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
+		},
+		real_mean = {
+		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=val_mean, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: mean"," - Y= ",unique(input$y),sep="")) + 
+		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"), breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
 		}
 	)
 return(grid_plot)
@@ -1691,6 +1695,45 @@ umbrella_points = function(data1,data2,data3=NA,timestep,valmin,valmax){
 return(umbrellapoints)
 }
 
+
+#' @title estimate limiting points of umbrella space / curve for ALL y-profiles with MEAN soil moisture values
+#' 
+#' @description scanning area from beneath, looking for depth with smallest difference
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+umbrella_points_mean = function(data1,data2,data3=NA,valmin,valmax){
+	#if(is.na(data3)){data3 = data.frame(Timestep = 0, y=0)}
+	umbrellapoints = data.frame(x=NA,Depth=NA,y=NA)
+	#setup grid
+	#SMgrid=grid3d_difs(data1,data2,data3,timestep,valmin,valmax)
+	SMgrid_difs = rbind(data1,data2)
+	counter = unique(data1$x)[c(TRUE, FALSE)]
+	ycount = unique(data2$y)[c(TRUE, FALSE)]
+	j=1
+	for (k in ycount){
+	#SMgrid=grid3d_difs_profile(SMgrid_ah,SMgrid_bvcv,timestep=time_i,yloc=k,valmin=limlow,valmax=limup)
+	for(i in counter){
+		depth.filter = 	filter(SMgrid_difs, x == i) %>%
+				filter(y == k) %>%
+				filter(DifValue > limlow & DifValue < limup)
+		umbrellapoints[j,2] = max(depth.filter$Depth)
+		range(depth.filter$Depth)
+		umbrellapoints[j,1] = i
+		umbrellapoints[j,3] = k
+		j=j+1
+	}
+	#plot(umbrellapoints, ylim=c(5,0))
+	}
+	
+return(umbrellapoints)
+}
+
 #' @title estimate function for umbrella space
 #' 
 #' @description using lm()
@@ -1739,5 +1782,23 @@ if(plotting){
 
 return(parameter_estimated)
 }
+
+#' @title aggregate data from hourly to daily (weekly, monthly) averages
+#' 
+#' @description using sorting and a moving window average
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+grid_aggregate = function(input, win_width, every_n){
+	data_sort = arrange(input, x,y,Depth)
+	grid.agg = rollapply(data_sort, width=win_width,by=every_n,FUN=mean,align="left")
+return(grid.agg)
+}
+
 
 

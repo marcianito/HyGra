@@ -1470,9 +1470,10 @@ return(grid_interpolated)
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-grid2d_difs = function(data1,data2,data3,timestep, valmin, valmax){
+grid2d_difs = function(data1,data2,data3=NA,timestep, valmin, valmax){
 #active for all 3 compartments
 #grid_difs = function(data1,data2,data3,timestep){
+	if(is.na(data3)){data3 = data.frame(Timestep = 0)}
 	ind = which(data1$Timestep == timestep)
 	TSnext = data1$Timestep[(last(ind)+1)]
 	#ind2 = which(data2$Timestep == timestep)
@@ -1481,7 +1482,35 @@ grid2d_difs = function(data1,data2,data3,timestep, valmin, valmax){
 	TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext),filter(data3, Timestep == TSnext))
 	#TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)))
 	TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)),filter(data3, Timestep == (timestep)))
-	grid_dif = cbind(TS1[,-5],DifValue=(TS2$value - TS1$value))
+	grid_dif = cbind(TS1,DifValue=(TS2$value - TS1$value))
+	grid_dif$dTheta = ifelse(grid_dif$DifValue >= valmax, "increase > ThetaMax", ifelse(grid_dif$DifValue <= valmin, "decrease < ThetaMin", "umbrella"))
+return(grid_dif)
+}
+
+
+#' @title Calculate delta values of 2 grids at different time steps
+#' 
+#' @description 3D
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+grid3d_difs = function(data1,data2,data3=NA,timestep, valmin, valmax){
+#active for all 3 compartments
+#grid_difs = function(data1,data2,data3,timestep){
+	if(is.na(data3)){data3 = data.frame(Timestep = 0)}
+	ind = which(data1$Timestep == timestep)
+	TSnext = data1$Timestep[(last(ind)+1)]
+	#TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext))
+	TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext),filter(data3, Timestep == TSnext))
+	#TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)))
+	TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)),filter(data3, Timestep == (timestep)))
+	#grid_dif = cbind(TS1[,-6],DifValue=(TS2$value - TS1$value))
+	grid_dif = cbind(TS1,DifValue=(TS2$value - TS1$value))
 	grid_dif$dTheta = ifelse(grid_dif$DifValue >= valmax, "increase > ThetaMax", ifelse(grid_dif$DifValue <= valmin, "decrease < ThetaMin", "umbrella"))
 return(grid_dif)
 }
@@ -1497,18 +1526,16 @@ return(grid_dif)
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-grid3d_difs = function(data1,data2,timestep, valmin, valmax){
+#grid3d_difs_profile = function(data1,data2,timestep,yloc, valmin, valmax){
 #active for all 3 compartments
-#grid_difs = function(data1,data2,data3,timestep){
+grid3d_difs_profile = function(data1,data2,data3=NA,timestep,yloc, valmin, valmax){
+	if(is.na(data3)){data3 = data.frame(Timestep = 0, y=0)}
 	ind = which(data1$Timestep == timestep)
 	TSnext = data1$Timestep[(last(ind)+1)]
-	#ind2 = which(data2$Timestep == timestep)
-	#TSnext2 = data2$Timestep[(last(ind2)+1)]
-	TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext))
-	#TS2 = rbind(filter(data1, Timestep == (timestep+1)),filter(data2, Timestep == (timestep+1)),filter(data3, Timestep == (timestep+1)))
-	TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)))
-	#TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)),filter(data3, Timestep == (timestep)))
-	grid_dif = cbind(TS1[,-6],DifValue=(TS2$value - TS1$value))
+	TS2 = rbind(filter(filter(data1, Timestep == TSnext),y==yloc),filter(filter(data2, Timestep == TSnext),y==yloc),filter(filter(data3, Timestep == TSnext),y==yloc))
+	TS1 = rbind(filter(filter(data1, Timestep == (timestep)),y==yloc),filter(filter(data2, Timestep == (timestep)),y==yloc),filter(filter(data3, Timestep == (timestep)),y==yloc))
+	#grid_dif = cbind(TS1[,-6],DifValue=(TS2$value - TS1$value))
+	grid_dif = cbind(TS1,DifValue=(TS2$value - TS1$value))
 	grid_dif$dTheta = ifelse(grid_dif$DifValue >= valmax, "increase > ThetaMax", ifelse(grid_dif$DifValue <= valmin, "decrease < ThetaMin", "umbrella"))
 return(grid_dif)
 }
@@ -1544,7 +1571,7 @@ saveGIF({
 		for(i in counter){
 		if(i == max(counter)) break
 		print(
-		ggplot(data=rbind(filter(SMgrid_ah, Timestep == i),filter(SMgrid_bvcv, Timestep == i)), aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",i,sep="")) + 
+		ggplot(data=rbind(filter(input1, Timestep == i),filter(input2, Timestep == i)), aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",i,sep="")) + 
 		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"), breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
 		) #end print
 		}}
@@ -1557,3 +1584,160 @@ saveGIF({
 fin="finished!"
 return(fin)
 }
+
+
+#' @title plot 3D grid
+#' 
+#' @description or differences between timesteps or absolute values each timestep
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+grid3d_plot = function(input,type){
+#later also add 3rd input!! (gneiss)
+switch(type,
+		difference = {
+		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=dTheta, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]") + ggtitle(paste("Timestep: ",input$Timestep," - Y= ",unique(input$y),sep="")) +
+		scale_fill_manual(values=c("increase > ThetaMax"="#151B54","decrease < ThetaMin"="#8C001A","umbrella"="white"))
+		},
+		real = {
+		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",input$Timestep," - Y= ",unique(input$y),sep="")) + 
+		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"), breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
+		}
+	)
+return(grid_plot)
+}
+
+
+#' @title estimate limiting points of umbrella space / curve for FIXED y-profiles
+#' 
+#' @description scanning area from beneath, looking for depth with smallest difference
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+umbrella_points_fixedY = function(data1,data2,data3=NA,timestep,yloc,valmin,valmax){
+	#if(is.na(data3)){data3 = data.frame(Timestep = 0, y=0)}
+	umbrellapoints = data.frame(x=NA,Depth=NA,y=NA)
+	#setup grid
+	SMgrid=grid3d_difs(data1,data2,data3,timestep,valmin,valmax)
+	#choose the right counter
+	#all x values wont work because layer bvcv does not have the same discretization
+	#therefore in every other column, depth are only chosen from layer ah
+	#this limits to a depth of ah = 0.1; and is not what we want
+	#counter = unique(SMgrid_test$x)
+	#instead we chose x discretization of layer bvcv:
+	counter = unique(SMgrid$x)[c(TRUE, FALSE)]
+	#set up counter for y-profiles
+	ycount = unique(SMgrid$y)[c(TRUE, FALSE)]
+	# get umbrellapoints for FIXED Y
+	j=1
+	ycol =2 
+	for(i in counter){
+		depth.filter = 	filter(SMgrid, x == i) %>%
+				filter(y == ycol) %>%
+				filter(DifValue > limlow & DifValue < limup)
+		umbrellapoints[j,2] = max(depth.filter$Depth)
+		range(depth.filter$Depth)
+		umbrellapoints[j,1] = i
+		umbrellapoints[j,3] = ycol
+		j=j+1
+	}
+	
+return(umbrellapoints)
+}
+
+#' @title estimate limiting points of umbrella space / curve for ALL y-profiles
+#' 
+#' @description scanning area from beneath, looking for depth with smallest difference
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+umbrella_points = function(data1,data2,data3=NA,timestep,valmin,valmax){
+	#if(is.na(data3)){data3 = data.frame(Timestep = 0, y=0)}
+	umbrellapoints = data.frame(x=NA,Depth=NA,y=NA)
+	#setup grid
+	SMgrid=grid3d_difs(data1,data2,data3,timestep,valmin,valmax)
+	counter = unique(SMgrid$x)[c(TRUE, FALSE)]
+	ycount = unique(SMgrid$y)[c(TRUE, FALSE)]
+	j=1
+	for (k in ycount){
+	SMgrid=grid3d_difs_profile(SMgrid_ah,SMgrid_bvcv,timestep=time_i,yloc=k,valmin=limlow,valmax=limup)
+	for(i in counter){
+		depth.filter = 	filter(SMgrid, x == i) %>%
+				filter(DifValue > limlow & DifValue < limup)
+		umbrellapoints[j,2] = max(depth.filter$Depth)
+		range(depth.filter$Depth)
+		umbrellapoints[j,1] = i
+		umbrellapoints[j,3] = k
+		j=j+1
+	}
+	#plot(umbrellapoints, ylim=c(5,0))
+	}
+	
+return(umbrellapoints)
+}
+
+#' @title estimate function for umbrella space
+#' 
+#' @description using lm()
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+predict_umbrellaspace = function(inputdata, displ_x, displ_y, polyorder,plotting=T){
+
+#displ_x = 9.5
+#displ_y = 10
+x = inputdata[,1] - displ_x
+y = inputdata[,2] - displ_y
+z = inputdata[,3]
+#generate model
+model = lm(z ~ poly(x,polyorder,raw=T) + poly(y,polyorder,raw=T))
+#generate output grid
+x.pred = unique(x)
+y.pred = unique(y)
+xy = expand.grid(x = x.pred, y = y.pred)
+#use model to predict depth
+z.vals = predict(model, newdata = xy)
+z.pred = matrix(-1*z.vals,
+		nrow = length(x.pred), ncol = length(y.pred))
+#points !?
+#fitpoints = predict(model_parapoloid)
+#predicted parameters
+#parameter_estimated = coef(model)
+parameter_estimated = summary(model)
+if(plotting){
+	library(plot3D)
+	library(plot3Drgl)
+	#static 3d plot
+	scatter3D(x,y,-1*z,theta=20,phi=20,ticktype="detailed",surf = list(x = x.pred, y = y.pred, z = z.pred,facets=NA),bty="g")
+	#interactive 3d plot
+	plotrgl()
+}
+#save plot
+#png(file="/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/Bodenart_SandyLoam_Example/umbrellacurve3D_TS26200_paraboloid.png", width=1000,height=1000,res=150)
+#scatter3D(x,y,-1*z,theta=20,phi=20,ticktype="detailed",surf = list(x = x.pred, y = y.pred, z = z.pred,facets=NA),bty="g")
+#dev.off()
+
+return(parameter_estimated)
+}
+
+

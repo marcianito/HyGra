@@ -135,5 +135,20 @@ normalize = function(x){
 	return(data_norm)
 }
 
+#' @title Normalize data only sbutracting mean
+#'
+#' @description Normalize data in subtracting the mean and dividing by the standard deviation.
+#'
+#' @param x input dataset
+#' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+#' 
+
+normalize_mean = function(x){
+	data_norm = (x - mean(x, na.rm=T))
+	return(data_norm)
+}
+
 
 

@@ -967,7 +967,8 @@ nodal.filter = 	filter(nodal_info_in, grepl("Moisture",Parameters)) %>%
 read_obsNode2d <- function(folder,realTime=T,startdate,plotting=F){
  library(stringr)
  #path_hydrus = "/home/mreich/server/hydro72/hydrus2d/experiments/" 
- path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus2d/experiments/" 
+ #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus2d/experiments/" 
+ path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus2_out/"
  setwd(paste(path_hydrus, folder, "/", sep="")) 
  #read mesh
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
@@ -975,9 +976,9 @@ read_obsNode2d <- function(folder,realTime=T,startdate,plotting=F){
  nodes_cords = read.table("MESHTRIA.TXT", header=F, skip=1 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
 
  #read obsveration node output file
- num_lines = length(readLines("obsNod.out"))
- obsNodeData = read.table(file="obsNod.out", header=T, skip=5, sep="",nrows=(num_lines-7), dec=".")
- nodeNames.in = read.table(file="obsNod.out", header=F, skip=3, sep="",nrows=1)
+ num_lines = length(readLines("ObsNod.out"))
+ obsNodeData = read.table(file="ObsNod.out", header=T, skip=5, sep="",nrows=(num_lines-7), dec=".")
+ nodeNames.in = read.table(file="ObsNod.out", header=F, skip=3, sep="",nrows=1)
  nodeNames = vector()
  for(i in 1:(length(nodeNames.in)/2)){
  nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i*2], "[0-9]+"))
@@ -1069,18 +1070,18 @@ read_obsNode3d <- function(folder,realTime=T,startdate,plotting=F){
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-obsNodePlot = function(filename, normdata=T, dim2d=T){
+obsNodePlot = function(filename, normdata=T, dim2d=T, time_start, time_end, filtersen=F){
 #load SM; filtered at 6 hourly intervalls
 #change for cluster version to maintain this file locally
 load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/SGnew_filtered_6hourmean.rdata")
 beneathBuilding = SGnew.filter[,11:18] #get sensor beneath SG building
 besidesBuilding = SGnew.filter[,19:25] #get closest sensors outside SG building
 colnames(beneathBuilding) = c("c shallow","b shallow","d shallow","c middle high","c middle low","b deep","c deep","d deep")
-colnames(besidesBuilding) = c("a02","a03","a04","a06","a10","a14","a18")
+colnames(besidesBuilding) = c("a shallow","a03","a04","a06","a10","a14","a deep")
 
 SMsensors = merge.zoo(beneathBuilding,besidesBuilding, all=T, fill=NA)
 if(normdata){#normalize theta data
-SMsensors.norm = zoo(apply(coredata(SMsensors),2,normalize), order.by=index(SMsensors))
+SMsensors.norm = zoo(apply(coredata(SMsensors),2,normalize_mean), order.by=index(SMsensors))
 SMsensors.melt = cbind(melt(zootodf(SMsensors.norm), id="time",variable.name="sensor"),type="observed")
 }else{
 SMsensors.melt = cbind(melt(zootodf(SMsensors), id="time",variable.name="sensor"),type="observed")
@@ -1089,7 +1090,7 @@ SMsensors.melt = cbind(melt(zootodf(SMsensors), id="time",variable.name="sensor"
 #load precipitation TS
 load("/home/mreich/server/hygra/DataWettzell/Climate/30min_wettzell/clima30min_raw.rdata")
 precip = clima.raw$Prec_Sen1
-precip.df = zootodf(precip); colnames(precip.df)[2] = "Precip"
+precip.df = zootodf(precip); colnames(precip.df)[2] = "Precipitation"
 precip.melt = cbind(melt(precip.df, id="time", variable.name="sensor"), type="observed")
 #adjust time series length to SM observations
 precip.melt = filter(precip.melt, time > as.POSIXct("2010-03-10 16:00:00"))
@@ -1100,7 +1101,7 @@ if(dim2d) folpath = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydru
 else folpath = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/"
 nodes=load(file=paste(folpath, filename, sep=""))
 if(normdata){#normalize theta data
-nodes.norm = zoo(apply(coredata(get(nodes)),2,normalize), order.by=index(get(nodes)))
+nodes.norm = zoo(apply(coredata(get(nodes)),2,normalize_mean), order.by=index(get(nodes)))
 nodes.melt = cbind(melt(zootodf(nodes.norm), id="time", variable.name="node"), type="modeled")
 }else{
 nodes.melt = cbind(melt(zootodf(get(nodes)), id="time", variable.name="node"), type="modeled")
@@ -1109,9 +1110,11 @@ nodes.melt = cbind(melt(zootodf(get(nodes)), id="time", variable.name="node"), t
 #sensor names have to be in the ORDER of node number names from hydrus
 #this is somewhat caotic due to internal hydrus numbering
 #this is for 2D only!!
-if(dim2d) sensors_nodes = data.frame(sensor = c("b shallow","b deep","c shallow","c middle high","c middle low","d shallow","d deep","a02","a03","a04","a06","a10","a18","a14","c deep"), node = colnames(get(nodes)))
+#if(dim2d) sensors_nodes = data.frame(sensor = c("b shallow","b deep","c shallow","c middle high","c middle low","d shallow","d deep","a02","a03","a04","a06","a10","a18","a14","c deep"), node = colnames(get(nodes)))
+#above was OLD hydrus 2d model obs Nodes !!
+if(dim2d) sensors_nodes = data.frame(sensor = c("a deep","c deep","d deep","a02","a04","a03","b shallow","b deep","a14","c middle low","d shallow","c shallow","c middle high","a shallow","a10"), node = colnames(get(nodes)))
 #3d
-else sensors_nodes = data.frame(sensor = c("a04","a02","a03","a06","a10","a14","b shallow","b deep","c shallow","c middle high","c middle low","d shallow","a deep","c deep","d deep"), node = colnames(get(nodes)))
+else sensors_nodes = data.frame(sensor = c("a04","a shallow","a03","a06","a10","a14","b shallow","b deep","c shallow","c middle high","c middle low","d shallow","a deep","c deep","d deep"), node = colnames(get(nodes)))
 
 nodes.melt = inner_join(nodes.melt, sensors_nodes, by="node") %>%
 		select(-node) %>%
@@ -1119,8 +1122,13 @@ nodes.melt = inner_join(nodes.melt, sensors_nodes, by="node") %>%
 #without precipitation
 #SMdata = rbind(SMsensors.melt, nodes.melt)
 #with precipitation
-SMdata = rbind(SMsensors.melt, nodes.melt, precip.melt)
-SMdata.gg = ggplot(SMdata, aes(x=time, y=value, colour=type)) + geom_line() + ylab("Theta [%VWC]") + xlab("") +
+SMdata = rbind(SMsensors.melt, nodes.melt, precip.melt) %>%
+	filter(time > time_start) %>%
+	filter(time < time_end)
+if(filtersen == T){
+SMdata = filter(SMdata, sensor == "Precipitation" | sensor == "a shallow" | sensor == "b shallow" | sensor == "d shallow" | sensor == "a deep" | sensor == "d deep")
+}
+SMdata.gg = ggplot(SMdata, aes(x=time, y=value, colour=type)) + geom_line() + ylab("Soil moisture [%VWC]") + xlab("") +
 		facet_grid(sensor~., scale="free_y")
 #save plot
 #png(file="/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/compare/NORMALIZED_SMobs-mod_ts49025_2d.png", width=1800, height=1200, res=100)
@@ -1311,8 +1319,8 @@ read_3dgrid = function(){
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-read_2dgrid = function(){
-
+read_2dgrid = function(path){
+ setwd(path)
  #read hydrus 2d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
  nodes_max = nodes_meta[1,2]
@@ -1366,6 +1374,36 @@ data_grid = rbind(data_grid, data_interpolated.melt)
 return(data_grid)
 } #end function
 
+#' @title Interpolate 2D nodes to regular, already FIXED grid
+#'
+#' @description interpolate hydrus mesh output to regular grid
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+nodestoFIXgrid_2d = function(fixgrid, data_input,nintpmax){
+library(gstat)
+
+#interpolate and "stack" for each timestep
+#data_grid=data.frame()
+#interpolate data to new grid
+idw.gstat = gstat(formula = value ~ 1, locations = ~ x + Depth, data = as.data.frame(data_input), nmax = nintpmax, set = list(idp = 2))
+#idw.gstat = gstat(formula = dataraw ~ 1, locations = ~ x + y + Depth, data = data_in, nmax = 10, nmin=3, maxdist=1.1, set = list(idp = 2))
+data_convert <- predict(idw.gstat, fixgrid)
+data_interpolated = data_convert[,-4]
+#colnames(data_interpolated)[5] = "data"
+#data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x","y"), measure.vars=c("data"), variable.name = "Parameters")
+data_interpolated.melt = melt(data_interpolated, id.vars=c("Depth","x"))
+#join data together in the loop
+data_grid = data_interpolated.melt
+
+return(data_grid)
+} #end function
+
 #' @title PARALLEL Interpolate 2D nodes to regular grid
 #'
 #' @description interpolate hydrus mesh output to regular grid
@@ -1377,7 +1415,7 @@ return(data_grid)
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-nodestogrid_2dPP = function(grid_cords, data_input, grid_discr, depth_split){
+nodestogrid_2dPP = function(grid_cords, data_input, grid_discr, depth_split,nintpmax){
 library(gstat)
 library(foreach)
 library(doParallel, quiet=T)
@@ -1401,7 +1439,7 @@ registerDoParallel(cluster) #register cluster
 grid_interpolated = foreach(i=unique(data_input$Timestep),.combine=rbind,.packages=c('dplyr','gstat','reshape2')) %dopar% {
 data_in = filter(data_input, Timestep==i) #filter for one timestep
 #interpolate data to new grid
-idw.gstat = gstat(formula = dataraw ~ 1, locations = ~ x + Depth, data = data_in, nmax = 10, set = list(idp = 2))
+idw.gstat = gstat(formula = dataraw ~ 1, locations = ~ x + Depth, data = data_in, nmax = nintpmax, set = list(idp = 2))
 data_convert <- predict(idw.gstat, grid.xz)
 data_interpolated = cbind(Timestep = i, data_convert[,-4])
 data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x"))
@@ -1453,11 +1491,9 @@ data_convert <- predict(idw.gstat, grid.xyz)
 data_interpolated = cbind(Timestep = i, data_convert[,-5])
 data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x","y"))
 }
-
 stopCluster(cluster)
 return(grid_interpolated)
 } #end function
-
 
 #' @title Calculate delta values of 2 grids at different time steps
 #' 
@@ -1541,6 +1577,39 @@ return(grid_dif)
 }
 
 
+#' @title Calculate delta values of 2 grids at different time steps
+#' 
+#' @description 3D: SM differences each timestep
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+grid3d_difs_allTS = function(data1,data2=NA,data3=NA){
+#active for all 3 compartments
+	if(is.na(data2)){data2 = data.frame(Timestep = 0)}
+	if(is.na(data3)){data3 = data.frame(Timestep = 0)}
+	for(i in unique(data1$Timestep)){
+		ind = which(data1$Timestep == i)
+		TSnext = data1$Timestep[(last(ind)+1)]
+		#TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext))
+		TS2 = rbind(filter(data1, Timestep == TSnext),filter(data2, Timestep == TSnext),filter(data3, Timestep == TSnext))
+		#TS1 = rbind(filter(data1, Timestep == (timestep)),filter(data2, Timestep == (timestep)))
+		TS1 = rbind(filter(data1, Timestep == i),filter(data2, Timestep == i),filter(data3, Timestep == i))
+		#grid_dif = cbind(TS1[,-6],DifValue=(TS2$value - TS1$value))
+		grid_dif_TS = cbind(TS2,DifValue=(TS2$value - TS1$value))
+		if(i == unique(data1$Timestep)[1]){
+			grid_dif = grid_dif_TS
+			next
+		}
+		grid_dif = rbind(grid_dif, grid_dif_TS)
+	}
+return(grid_dif)
+}
+
 #' @title make a sequence (movie) from model results
 #' 
 #' @description or differences between timesteps or absolute values each timestep
@@ -1563,7 +1632,7 @@ saveGIF({
 		for(i in counter){
 		if(i == max(counter)) break
 		print(
-		ggplot(data=grid3d_difs(input1,input2,i,valmin,valmax), aes(x=x, y=Depth)) + geom_tile(aes(fill=dTheta, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]") + ggtitle(paste("Timestep: ",i,sep="")) +
+		ggplot(data=grid3d_difs(input1,input2,i,valmin,valmax), aes(x=x, y=Depth)) + geom_tile(aes(fill=dTheta, width=.5, height=.5)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]") + ggtitle(paste("Timestep: ",i,sep="")) +
 		scale_fill_manual(values=c("increase > ThetaMax"="#151B54","decrease < ThetaMin"="#8C001A","umbrella"="white"))
 		) #end print
 		}},
@@ -1571,7 +1640,7 @@ saveGIF({
 		for(i in counter){
 		if(i == max(counter)) break
 		print(
-		ggplot(data=rbind(filter(input1, Timestep == i),filter(input2, Timestep == i)), aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",i,sep="")) + 
+		ggplot(data=rbind(filter(input1, Timestep == i),filter(input2, Timestep == i)), aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=.5)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",i,sep="")) + 
 		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"), breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
 		) #end print
 		}}
@@ -1601,16 +1670,20 @@ grid3d_plot = function(input,type){
 #later also add 3rd input!! (gneiss)
 switch(type,
 		difference = {
-		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=dTheta, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]") + ggtitle(paste("Timestep: ",input$Timestep," - Y= ",unique(input$y),sep="")) +
+		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=dTheta, width=.5, height=.5)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]") + ggtitle(paste("Timestep: ",input$Timestep," - Y= ",unique(input$y),sep="")) +
 		scale_fill_manual(values=c("increase > ThetaMax"="#151B54","decrease < ThetaMin"="#8C001A","umbrella"="white"))
 		},
 		real = {
-		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",input$Timestep," - Y= ",unique(input$y),sep="")) + 
+		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=.5)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: ",input$Timestep," - Y= ",unique(input$y),sep="")) + 
 		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"), breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
 		},
 		real_mean = {
-		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=val_mean, width=.5, height=Depth)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: mean"," - Y= ",unique(input$y),sep="")) + 
+		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=val_mean, width=.5, height=.5)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: mean"," - Y= ",unique(input$y),sep="")) + 
 		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"), breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
+		},
+		SD = {
+		grid_plot = ggplot(data=input, aes(x=x, y=Depth)) + geom_tile(aes(fill=value, width=.5, height=.5)) + ylim(5,0) + xlab("Horizontal [m]") + ylab("Depth [m]")+ ggtitle(paste("Timestep: sd"," - Y= ",unique(input$y),sep="")) + 
+		scale_fill_gradientn(colours=c("#8C001A","#437C17","#151B54"))#, breaks=c(0.01,0.1,0.2,0.25,0.3,0.4,0.5)) 
 		}
 	)
 return(grid_plot)
@@ -1648,7 +1721,7 @@ umbrella_points_fixedY = function(data1,data2,data3=NA,timestep,yloc,valmin,valm
 	for(i in counter){
 		depth.filter = 	filter(SMgrid, x == i) %>%
 				filter(y == ycol) %>%
-				filter(DifValue > limlow & DifValue < limup)
+				filter(DifValue > valmin & DifValue < valmax)
 		umbrellapoints[j,2] = max(depth.filter$Depth)
 		range(depth.filter$Depth)
 		umbrellapoints[j,1] = i
@@ -1679,10 +1752,10 @@ umbrella_points = function(data1,data2,data3=NA,timestep,valmin,valmax){
 	ycount = unique(SMgrid$y)[c(TRUE, FALSE)]
 	j=1
 	for (k in ycount){
-	SMgrid=grid3d_difs_profile(SMgrid_ah,SMgrid_bvcv,timestep=time_i,yloc=k,valmin=limlow,valmax=limup)
+	SMgrid=grid3d_difs_profile(SMgrid_ah,SMgrid_bvcv,timestep=time_i,yloc=k,valmin=valmin,valmax=valmax)
 	for(i in counter){
 		depth.filter = 	filter(SMgrid, x == i) %>%
-				filter(DifValue > limlow & DifValue < limup)
+				filter(DifValue > valmin & DifValue < valmax)
 		umbrellapoints[j,2] = max(depth.filter$Depth)
 		range(depth.filter$Depth)
 		umbrellapoints[j,1] = i
@@ -1721,15 +1794,129 @@ umbrella_points_mean = function(data1,data2,data3=NA,valmin,valmax){
 	for(i in counter){
 		depth.filter = 	filter(SMgrid_difs, x == i) %>%
 				filter(y == k) %>%
-				filter(DifValue > limlow & DifValue < limup)
+				filter(DifValue > valmin & DifValue < valmax)
 		umbrellapoints[j,2] = max(depth.filter$Depth)
-		range(depth.filter$Depth)
 		umbrellapoints[j,1] = i
 		umbrellapoints[j,3] = k
 		j=j+1
 	}
 	#plot(umbrellapoints, ylim=c(5,0))
 	}
+	
+return(umbrellapoints)
+}
+
+#' @title estimate limiting points of umbrella space / curve for ALL y-profiles with SD of soil moisture point time series
+#' 
+#' @description scanning area from beneath, looking for depth with smallest difference
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+umbrella_points_sd = function(data1,data2=NA,data3=NA,valmax,counters){
+	#if(is.na(data3)){data3 = data.frame(Timestep = 0, y=0)}
+	umbrellapoints = data.frame(x=NA,Depth=NA,y=NA)
+	#setup grid
+	#SMgrid=grid3d_difs(data1,data2,data3,timestep,valmin,valmax)
+	#SMgrid_sd = rbind(data1,data2,data3)
+	SMgrid_sd = data1
+	#counter = unique(data1$x)[c(TRUE, FALSE)]
+	#ycount = unique(data2$y)[c(TRUE, FALSE)]
+	j=1
+	for (k in counters$y){
+	#SMgrid=grid3d_difs_profile(SMgrid_ah,SMgrid_bvcv,timestep=time_i,yloc=k,valmin=limlow,valmax=limup)
+	for(i in counters$x){
+		depth.filter = 	filter(SMgrid_sd, x == i) %>%
+				filter(y == k) %>%
+				filter(value < valmax)
+		if(length(depth.filter$Depth) < 1) umbrellapoints[j,2] = NA
+		else umbrellapoints[j,2] = max(depth.filter$Depth)
+		umbrellapoints[j,1] = i
+		umbrellapoints[j,3] = k
+		j=j+1
+	}
+	#plot(umbrellapoints, ylim=c(5,0))
+	}
+	
+return(umbrellapoints)
+}
+
+
+#' @title estimate limiting points of umbrella space / curve for ALL y-profiles with SD of soil moisture point time series
+#' 
+#' @description scanning area from beneath, looking for depth with smallest difference
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+umbrella_points_cluster = function(data1,clusternum, counters){
+	#if(is.na(data3)){data3 = data.frame(Timestep = 0, y=0)}
+	umbrellapoints = data.frame(x=NA,Depth=NA,y=NA)
+	#setup grid
+	#SMgrid=grid3d_difs(data1,data2,data3,timestep,valmin,valmax)
+	SMgrid = data1
+	#counter = unique(data1$x)[c(TRUE, FALSE)]
+	#ycount = unique(data1$y)[c(TRUE, FALSE)]
+	j=1
+	for (k in counters$y){
+	#SMgrid=grid3d_difs_profile(SMgrid_ah,SMgrid_bvcv,timestep=time_i,yloc=k,valmin=limlow,valmax=limup)
+	for(i in counters$x){
+		depth.filter = 	filter(SMgrid, x == i) %>%
+				filter(y == k) %>%
+				filter(cluster == clusternum)
+		umbrellapoints[j,2] = max(depth.filter$Depth)
+		umbrellapoints[j,1] = i
+		umbrellapoints[j,3] = k
+		j=j+1
+	}
+	#plot(umbrellapoints, ylim=c(5,0))
+	}
+	
+return(umbrellapoints)
+}
+
+#' @title estimate limiting points of umbrella space / curve for ALL y-profiles with SD of soil moisture point time series
+#' 
+#' @description scanning area from beneath, looking for depth with smallest difference
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+umbrella_points2D_cluster = function(data1,clusternum,counter){
+	#if(is.na(data3)){data3 = data.frame(Timestep = 0, y=0)}
+	umbrellapoints = data.frame(x=NA,Depth=NA)
+	#setup grid
+	#SMgrid=grid3d_difs(data1,data2,data3,timestep,valmin,valmax)
+	SMgrid = data1
+	#counter = unique(data1$x)[c(TRUE, FALSE)]
+	#ycount = unique(data1$y)[c(TRUE, FALSE)]
+	j=1
+	#for (k in ycount){
+	#SMgrid=grid3d_difs_profile(SMgrid_ah,SMgrid_bvcv,timestep=time_i,yloc=k,valmin=limlow,valmax=limup)
+	for(i in counter){
+		depth.filter = 	filter(SMgrid, x == i) %>%
+				#filter(y == k) %>%
+				filter(cluster == clusternum)
+		if(length(depth.filter$Depth) < 1) umbrellapoints[j,2] = NA
+		else umbrellapoints[j,2] = max(depth.filter$Depth)
+		umbrellapoints[j,1] = i
+		#umbrellapoints[j,3] = k
+		j=j+1
+	}
+	#plot(umbrellapoints, ylim=c(5,0))
+	#}
 	
 return(umbrellapoints)
 }
@@ -1745,7 +1932,7 @@ return(umbrellapoints)
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-predict_umbrellaspace = function(inputdata, displ_x, displ_y, polyorder,plotting=T){
+predict_umbrellaspace = function(inputdata, displ_x, displ_y, polyorder, fitgeometry,plotting=T){
 
 #displ_x = 9.5
 #displ_y = 10
@@ -1753,7 +1940,11 @@ x = inputdata[,1] - displ_x
 y = inputdata[,2] - displ_y
 z = inputdata[,3]
 #generate model
-model = lm(z ~ poly(x,polyorder,raw=T) + poly(y,polyorder,raw=T))
+switch(fitgeometry,
+       paraboloid = {model = lm(z ~ poly(x,polyorder,raw=T) + poly(y,polyorder,raw=T))}
+       #pyramid = {model = lm(z ~ poly(x,polyorder,raw=T) + poly(y,polyorder,raw=T))},
+       #cone = {model = lm(z ~ poly(x,polyorder,raw=T) + poly(y,polyorder,raw=T))}
+       )
 #generate output grid
 x.pred = unique(x)
 y.pred = unique(y)
@@ -1771,15 +1962,68 @@ if(plotting){
 	library(plot3D)
 	library(plot3Drgl)
 	#static 3d plot
-	scatter3D(x,y,-1*z,theta=20,phi=20,ticktype="detailed",surf = list(x = x.pred, y = y.pred, z = z.pred,facets=NA),bty="g")
+	scatter3D(x,y,-1*z,theta=20,phi=20,ticktype="detailed",surf = list(x = x.pred, y = y.pred, z = z.pred,facets=NA),cex.axis = 2, cex.lab = 2.5,bty = "b2", colkey = FALSE)
 	#interactive 3d plot
-	plotrgl()
+	#plotrgl()
 }
 #save plot
 #png(file="/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/Bodenart_SandyLoam_Example/umbrellacurve3D_TS26200_paraboloid.png", width=1000,height=1000,res=150)
 #scatter3D(x,y,-1*z,theta=20,phi=20,ticktype="detailed",surf = list(x = x.pred, y = y.pred, z = z.pred,facets=NA),bty="g")
 #dev.off()
+#UmbrellaSpacePlot <<- UmbrellaSpacePlot
+return(parameter_estimated)
+}
 
+#' @title estimate function for umbrella space in 2D
+#' 
+#' @description using lm()
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+predict_umbrellaspace_2d = function(inputdata, displ_x, polyorder, fitgeometry,plotting=T){
+
+#displ_x = 9.5
+#displ_y = 10
+x = inputdata[,1] - displ_x
+z = inputdata[,2]
+#generate model
+switch(fitgeometry,
+       parabel = {model = lm(z ~ poly(x,polyorder,raw=T))}
+       #pyramid = {model = lm(z ~ poly(x,polyorder,raw=T) + poly(y,polyorder,raw=T))},
+       #cone = {model = lm(z ~ poly(x,polyorder,raw=T) + poly(y,polyorder,raw=T))}
+       )
+#generate output grid
+x.pred = unique(x)
+#xy = expand.grid(x = x.pred, y = y.pred)
+#use model to predict depth
+z.vals = predict(model, newdata = x.pred)
+z.pred = matrix(-1*z.vals,
+		nrow = length(x.pred), ncol = 1)
+#points !?
+#fitpoints = predict(model_parapoloid)
+#predicted parameters
+#parameter_estimated = coef(model)
+parameter_estimated = summary(model)
+if(plotting){
+	library(plot3D)
+	library(plot3Drgl)
+	#static 3d plot
+	plot(x,z)
+	points(x.pred,z.pred, col="blue")
+	#scatter3D(x,y,-1*z,theta=20,phi=20,ticktype="detailed",surf = list(x = x.pred, z = z.pred,facets=NA),cex.axis = 2, cex.lab = 2.5,bty = "b2", colkey = FALSE)
+	#interactive 3d plot
+	#plotrgl()
+}
+#save plot
+#png(file="/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus3d_out/Bodenart_SandyLoam_Example/umbrellacurve3D_TS26200_paraboloid.png", width=1000,height=1000,res=150)
+#scatter3D(x,y,-1*z,theta=20,phi=20,ticktype="detailed",surf = list(x = x.pred, y = y.pred, z = z.pred,facets=NA),bty="g")
+#dev.off()
+#UmbrellaSpacePlot <<- UmbrellaSpacePlot
 return(parameter_estimated)
 }
 
@@ -1796,9 +2040,87 @@ return(parameter_estimated)
 
 grid_aggregate = function(input, win_width, every_n){
 	data_sort = arrange(input, x,y,Depth)
-	grid.agg = rollapply(data_sort, width=win_width,by=every_n,FUN=mean,align="left")
+	grid.agg = data.frame(Timestep = data_sort$Timestep[seq(1,length(data_sort[,1]),24)],
+				Depth = data_sort$Depth[seq(1,length(data_sort[,1]),24)],
+				x = data_sort$x[seq(1,length(data_sort[,1]),24)],
+				y = data_sort$y[seq(1,length(data_sort[,1]),24)],
+				value=rollapply(data_sort$value, width=win_width,by=every_n,FUN=mean,align="left"))
 return(grid.agg)
 }
 
+#' @title compute grouped standard deviation, range, max from values averaged in y-direction (of 3D grid)
+#' 
+#' @description using sorting and a moving window average
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+grid_stats = function(input, method, dimension){
+	# chose method for statistics
+	switch(method,
+	       MEAN = {
+		grid.stats = group_by(input, x,y,Depth) %>%
+			summarize(value=mean(value, na.rm=T))
+	       },
+	       SD = {
+		grid.stats = group_by(input, x,y,Depth) %>%
+			summarize(value=sd(value, na.rm=T))
+	       },
+	       RANGE = {
+		grid.stats = group_by(input, x,y,Depth) %>%
+			summarize(value=abs(range(value)[2]-range(value)[1]))
+	       },
+	       MAX = {
+		grid.stats = group_by(input, x,y,Depth) %>%
+			summarize(value=max(value, na.rm=T))
+	       }
+	       )
+
+	# if dim = 2, all values will be agregated (mean) over y
+	if(dimension==2){
+	grid.stats = group_by(grid.stats, x,Depth) %>%
+	       		summarize(value=mean(value))
+	}
+return(grid.stats)
+}
+
+
+#' @title compute grouped standard deviation, range, max, mean from values of 2D grid
+#' 
+#' @description using sorting and a moving window average
+#'
+#' @param data1,data2,data3 input data. has to be in the format XX.
+#' @param timestep vector of timesteps to be considered for calculations.
+#' @param valmax,valmin values where to cut off resulting differces, leaving a data-area of special consideration
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+grid_stats_2d = function(input, method){
+	# chose method for statistics
+	switch(method,
+	       MEAN = {
+		grid.stats = group_by(input, x,Depth) %>%
+			summarize(value=mean(value, na.rm=T))
+	       },
+	       SD = {
+		grid.stats = group_by(input, x,Depth) %>%
+			summarize(value=sd(value, na.rm=T))
+	       },
+	       RANGE = {
+		grid.stats = group_by(input, x,Depth) %>%
+			summarize(value=abs(range(value, na.rm=T)[2]-range(value, na.rm=T)[1]))
+	       },
+	       MAX = {
+		grid.stats = group_by(input, x,Depth) %>%
+			summarize(value=max(value, na.rm=T))
+	       }
+	       )
+return(grid.stats)
+}
 
 

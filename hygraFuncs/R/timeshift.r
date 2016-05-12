@@ -405,42 +405,73 @@ ccf_multievent = function(events, mv_win, nmax, limit_cor, correct_cor=T, limit_
 	#prepare for plotting
 	results_mean_plot = melt(results_mean, id=c("Profile","sensor","depth","sensorprofile"))
 	#actual plotting
+	# creating a transparent theme for all plots
+	theme_trans_X = theme(#legend.position = "bottom",
+	 legend.position="none",
+	 panel.background = element_rect(fill="white"),
+	 #panel.background = element_blank(),
+	 #panel.border = element_rect(fill="white"),
+	 #panel.border = element_blank(),
+	 #panel.grid.major = element_line(colour = "black", linetype = "dotted"),
+	 panel.grid.minor = element_blank(),
+	 panel.grid.major.x = element_blank(),
+	 panel.grid.major.y = element_blank(),
+	 panel.grid.minor.y = element_blank(),
+	 #axis.line = element_line(size = .5, linetype = "solid", colour = "black"),
+	 #axis.line.x = element_blank(),
+	 axis.title.y=element_text(margin=margin(0,20,0,0)),
+	 axis.ticks.x = element_line(size=2),
+ 	 axis.text=element_text(size=15),
+         axis.title=element_text(size=26,face="bold"),
+	 strip.text=element_text(size=16,face="bold"),
+	 plot.background = element_rect(fill = "transparent",colour = NA)
+	 #axis.line = element_line(colour = "black")
+	 )
 	#correlation
-	results_cor = mutate(results_mean_plot, sensor = factor(sensor, levels=c("d","c","b"))) %>%
+	#results_cor = mutate(results_mean_plot, sensor = factor(sensor, levels=c("d","c","b"))) %>%
+	results_cor = mutate(results_mean_plot, sensor = factor(paste("Profile ",sensor,sep=""), levels=c("Profile d","Profile c","Profile b"))) %>%
 		      filter(variable == "cor_mean") %>%
 		      inner_join(valuerange, by="sensorprofile") %>%
 		      inner_join(used_abs, by="sensorprofile") #%>%
 		      #group_by(sensor, depth)
-	correlation.gg = ggplot(data=results_cor, aes(x=value, y=(depth*-1),colour=value)) + ylab("Depth [m]") + xlab("Correlation coefficient [%]") + geom_point(size=4.5) + theme_bw() + ggtitle("") +
-	geom_errorbarh(aes(xmax=cor_max,xmin=cor_min)) + geom_path() +
-	geom_text(aes(label=dataused), vjust=1.3, hjust=1.3) +
+	correlation.gg = ggplot(data=results_cor, aes(x=value, y=(depth*-1))) + ylab("Depth [m]") + xlab("Correlation coefficient [%]") + geom_point(size=4.5) + theme_bw() + ggtitle("") +
+	geom_errorbarh(aes(xmax=cor_max,xmin=cor_min)) +
+	geom_text(aes(label=dataused), vjust=1.6, hjust=1.3) +
 	scale_y_continuous(breaks = c(-0.6,-1.0,-1.5,-1.8)) +
 	facet_grid(.~sensor) + 
+	theme_trans_X + 
 	scale_colour_gradientn("",colours=c("black","blue","red"))#, breaks=breaks_val)
 	#lagtime
-	results_lag = mutate(results_mean_plot, sensor = factor(sensor, levels=c("d","c","b"))) %>%
+	results_lag = mutate(results_mean_plot, sensor = factor(paste("Profile ",sensor,sep=""), levels=c("Profile d","Profile c","Profile b"))) %>%
 		      filter(variable == "lag_mean") %>%
 		      inner_join(valuerange, by="sensorprofile") %>%
 		      inner_join(used_abs, by="sensorprofile") #%>%
-	lagtime.gg = ggplot(data=results_lag, aes(x=value, y=(depth*-1),colour=value)) + ylab("Depth [m]") + xlab("Lagtime [h]") + geom_point(size=4.5) + theme_bw() + ggtitle("") +
-	geom_errorbarh(aes(xmax=lag_max,xmin=lag_min)) + geom_path() +
+	lagtime.gg = ggplot(data=results_lag, aes(x=value, y=(depth*-1))) + ylab("Depth [m]") + xlab("Lagtime [h]") + geom_point(size=4.5) + theme_bw() + ggtitle("") +
+	geom_errorbarh(aes(xmax=lag_max,xmin=lag_min)) +
 	geom_text(aes(label=dataused), vjust=1.7, hjust=1.3) +
 	scale_y_continuous(breaks = c(-0.6,-1.0,-1.5,-1.8)) +
 	facet_grid(.~sensor) + 
+	theme_trans_X + 
 	scale_colour_gradientn("",colours=c("black","blue","red"))#, breaks=breaks_val)
 	#snrtest failure
-	results_snr = mutate(results_mean_plot, sensor = factor(sensor, levels=c("d","c","b"))) %>%
+	results_snr = mutate(results_mean_plot, sensor = factor(paste("Profile ",sensor,sep=""), levels=c("Profile d","Profile c","Profile b"))) %>%
 		      filter(variable == "SNR" | variable == "COR" | variable == "LAG")
-	snrpass.gg = ggplot(data=results_snr, aes(x=value, y=(depth*-1),colour=variable)) + ylab("Depth [m]") + xlab("events passed quality measurement[%]") + geom_point(size=4.5, position = position_jitter(w=0,h=0.05)) + theme_bw() + ggtitle("") +
+	snrpass.gg = ggplot(data=results_snr, aes(x=value, y=(depth*-1),colour=variable)) + ylab("Depth [m]") + xlab("Quality criteria passed [%]") + geom_point(size=4.5, position = position_jitter(w=0,h=0.07)) + theme_bw() + ggtitle("") +
 	scale_y_continuous(breaks = c(-0.6,-1.0,-1.5,-1.8)) +
-	facet_grid(.~sensor)# + 
-	#scale_colour_gradientn("",colours=c("black","blue","red"))#, breaks=breaks_val)
+	facet_grid(.~sensor) + 
+	guides(colour = guide_legend(title="", keywidth=1.5,label.position="bottom")) + 
+	theme_trans_X + 
+	theme(legend.position="bottom",legend.background = element_rect(fill = "transparent", colour = "transparent"))
 	#all plots together
-	grid.arrange(correlation.gg,lagtime.gg,snrpass.gg, top=paste("Events used in this anaylsis: ",numberofevents,sep=""))
+	grid.arrange(correlation.gg,lagtime.gg,snrpass.gg)
 	}
 	#
 	#return table of mean result
-	return(results_table)
+	#return(results_table)
+	#slightly differently formated data.frame, used for plotting
+	#valuerange <<- valuerange
+	#used_abs <<- used_abs
+	return(results_mean)
 }
 
 #' @title Estimation of correlation coefficients and time lags of two timeseries (via cross-correlation )

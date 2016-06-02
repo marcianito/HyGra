@@ -550,6 +550,7 @@ read_hydrus2d <- function(folder, timesteps, factorforprintout, plotting=F, time
  #path_hydrus = "/home/mreich/server/hydro72/hydrus2d/experiments/" 
  path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus2d/experiments/" 
  setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #setwd(paste("./", folder, "/", sep="")) 
  #read hydrus 2d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
  nodes_max = nodes_meta[1,2]
@@ -1150,9 +1151,11 @@ return(SMdata.gg)
 
 read_hydrus2d_data = function(folder, timestamps, datatype="moisture"){
 
- path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus2_out/" 
+ #path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus2_out/" 
  #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus3d/hydrus3D_expRuns/" 
- setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #setwd(paste("./", folder, "/", sep="")) 
+ setwd(paste("./", folder, sep="")) 
  #read hydrus 2d output files
  nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
  nodes_max = nodes_meta[1,2]
@@ -1401,6 +1404,44 @@ data_interpolated.melt = melt(data_interpolated, id.vars=c("Depth","x"))
 #join data together in the loop
 data_grid = data_interpolated.melt
 
+return(data_grid)
+} #end function
+
+#' @title Interpolate 2D nodes to regular grid
+#'
+#' @description interpolate hydrus mesh output to regular grid
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+nodestogrid_2d = function(grid_cords, data_input, grid_discr, depth_split,nintpmax){
+library(gstat)
+
+#generate regular-spaced grid
+grid.x <- seq(min(grid_cords$x), max(grid_cords$x), by=grid_discr[1])
+grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr[2])
+grid.xz <- expand.grid(x=grid.x, Depth=grid.z)
+
+#filter input data for the corrsponding horizon of the model (in z-direction)
+#this is done for faster computing:
+#splitting up dataset allows different discretizations of each horizon
+
+#interpolate and "stack" for each timestep
+data_grid=data.frame()
+for(i in unique(data_input$Timestep)){
+data_in = filter(data_input, Timestep==i) #filter for one timestep
+#interpolate data to new grid
+idw.gstat = gstat(formula = dataraw ~ 1, locations = ~ x + Depth, data = data_in, nmax = nintpmax, set = list(idp = 2))
+data_convert <- predict(idw.gstat, grid.xz)
+data_interpolated = cbind(Timestep = i, data_convert[,-4])
+data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x"))
+data_grid = rbind(data_grid, data_interpolated.melt)
+}
+#return(grid_interpolated)
 return(data_grid)
 } #end function
 

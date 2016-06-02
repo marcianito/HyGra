@@ -377,9 +377,9 @@ library(gstat)
 # temporarily hardgecoded hydrus 3d Area
 #grid.x <- seq(4564029.26662,4564049.35606 , by=grid_discr[1])
 #grid.y <- seq(5445650.34147,5445670.49548 , by=grid_discr[2])
-grid.x <- seq(min(demgrid_in$x), max(demgrid_in$x), by=grid_discr[1])
-grid.y <- seq(min(demgrid_in$y), max(demgrid_in$y), by=grid_discr[2])
-grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr[3])
+grid.x <- seq(min(demgrid_in$x, na.rm=T), max(demgrid_in$x, na.rm=T), by=grid_discr$x)
+grid.y <- seq(min(demgrid_in$y, na.rm=T), max(demgrid_in$y, na.rm=T), by=grid_discr$y)
+grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr$z)
 grid.xyz <- expand.grid(x=grid.x, y=grid.y, Depth=grid.z)
 grid.surface <- expand.grid(x=grid.x, y=grid.y)
 
@@ -609,13 +609,60 @@ r_outer = 1000 #[m]
 #g_grid_result = mutate(g_grid, gcomp = select_gMethod(x,y,z,senloc,g_discr))
 
 for(i in 1:length(g_grid[,1])){
-g_grid$gcomp[i] = select_gMethod(g_grid$x[i],g_grid$y[i],g_grid$z[i],senloc,g_discr,edge, g_grid$layer[i], max(g_grid$layer))
+g_grid$gcomp[i] = select_gMethod(g_grid$x[i],g_grid$y[i],g_grid$z[i],senloc,g_discr,edge, g_grid$layer[i], max(g_grid$layer),r_inner,r_outer,gama,rho,w)
 }
 
 return(g_grid)
 }
 
 ### end gcomp_raw ###
+
+#' @title Calculate gravity component, WITHOUT umbrella effect
+#'
+#' @description Calculates the gravity components (100percent values) for a given DEM using a nested approach
+#'
+#' @param g_grid grid for which to calculate gravity components. (generally derived from DEM of region in combination with hydrological modeling mesh/grid).
+#' @param senloc coordinates of gravity sensor location. data.frame with x,y,z columns.
+#' @param g_discr discretization of g_grid in differences in x,y,and z-direction. they have to be uniform steps!
+#' @param edge if grid to calulate is located on a domain edge (top or bottom). for top set edge='first', for bottom set edge='last'.
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+
+gcomp_raw_dplyr <- function(g_grid, senloc, g_discr, edge){
+#constants
+gama <- 6.673e-11 #m³/(kg*s²)
+rho <- 1000 #kg/m³
+#w <- 1e8 #gravity units µGal
+w <- 1e9 #gravity units nm/s²
+#radius criteria
+#r2exac=2^2 #bei 2.5 x 2.5 cellsizes ~=   50 m
+#r2macm=9^2 #bei 2.5 x 2.5 cellsizes ~= 1000 m
+r_inner = 50 #[m]
+r_outer = 1000 #[m]
+#prepare SG-data-file
+# gravity component is just a new column on g_grid
+# containing the g_comp, conditionally to some causes, calculated using one of the 3 methods
+# !! important
+# due to maintaining original grid, gravity component cells (volumini) of the first row (surface) and last row (lower boundary),
+# have to be adjusted to only HALF SIZE (value), due to cut off
+# advantage of this approach:
+# maintaining org. grid facilitates trasnformation of (hydrological) model output
+# because no grid_transformation is needed
+# if NOT, use layer "would be lost"
+# due to midpoint of g component cell (volumina)
+# here the calculations for each line (grid point)
+
+layern_max = max(g_grid$layer)
+# rowwise
+g_grid = g_grid %>%
+	rowwise() %>%
+	mutate(gcomp = select_gMethod(x,y,z,senloc,g_discr, edge, layer, layern_max,r_inner,r_outer,gama,rho,w))
+# apply
+
+return(g_grid)
+}
 
 #' @title subtract umbrella EFFECT from gcomp (raw) grid
 #'
@@ -700,14 +747,22 @@ return(grid_output)
 #' @examples example MISSING
 #' @export
 
-remove_outsideRadius = function(grid_input, gloc, max_rad){
+remove_outsideRadius = function(grid_input, gloc, max_rad, layerinfo=F){
 	# limit maximum radius of gravity grid
 	# if max_rad = NA, no limitation will be realized
+	if(layerinfo){
+	grid_output = dplyr::mutate(grid_input, distance_rad = sqrt((x-gloc$x)^2+(y-gloc$y)^2+(z-gloc$z)^2)) %>%
+			dplyr::mutate(excluse = ifelse(distance_rad > max_rad, TRUE, FALSE)) %>%
+			# delete all rows with exclude == TRUE
+			dplyr::filter(excluse == FALSE) %>%
+			dplyr::select(x,y,z,zgrid,layer)
+	}else{
 	grid_output = dplyr::mutate(grid_input, distance_rad = sqrt((x-gloc$x)^2+(y-gloc$y)^2+(z-gloc$z)^2)) %>%
 			dplyr::mutate(excluse = ifelse(distance_rad > max_rad, TRUE, FALSE)) %>%
 			# delete all rows with exclude == TRUE
 			dplyr::filter(excluse == FALSE) %>%
 			dplyr::select(x,y,z)
+	}
 # return result
 return(grid_output)
 }
@@ -724,14 +779,22 @@ return(grid_output)
 #' @examples example MISSING
 #' @export
 
-remove_insideRadius = function(grid_input, gloc, max_rad){
+remove_insideRadius = function(grid_input, gloc, max_rad, layerinfo=F){
 	# limit maximum radius of gravity grid
 	# if max_rad = NA, no limitation will be realized
+	if(layerinfo){
+	grid_output = dplyr::mutate(grid_input, distance_rad = sqrt((x-gloc$x)^2+(y-gloc$y)^2+(z-gloc$z)^2)) %>%
+			dplyr::mutate(excluse = ifelse(distance_rad > max_rad, TRUE, FALSE)) %>%
+			# delete all rows with exclude == TRUE
+			dplyr::filter(excluse == TRUE) %>%
+			dplyr::select(x,y,z,zgrid,layer)
+	}else{
 	grid_output = dplyr::mutate(grid_input, distance_rad = sqrt((x-gloc$x)^2+(y-gloc$y)^2+(z-gloc$z)^2)) %>%
 			dplyr::mutate(excluse = ifelse(distance_rad > max_rad, TRUE, FALSE)) %>%
 			# delete all rows with exclude == TRUE
 			dplyr::filter(excluse == TRUE) %>%
 			dplyr::select(x,y,z)
+	}
 # return result
 return(grid_output)
 }
@@ -749,7 +812,7 @@ return(grid_output)
 #' @examples example MISSING
 #' @export
 
-remove_insideArea = function(grid_input, area_poly){
+remove_insideArea = function(grid_input, area_poly, layerinfo=F){
 	#library(SDMTools)
 	##area_poly = data.frame(x=rem_area[1:2],y=rem_area[3:4])
 	#points_in=data.frame(x=grid_input$x, y=grid_input$y)
@@ -759,6 +822,16 @@ remove_insideArea = function(grid_input, area_poly){
 		      #dplyr::filter(pip == 0) %>%
 		      #dplyr::select(x,y,z)
 	
+	if(layerinfo){
+	grid_output = dplyr::mutate(grid_input, pip = ifelse(
+					x > area_poly$x[1] &
+					x < area_poly$x[2] &
+					y > area_poly$y[3] &
+					y < area_poly$y[1]  
+					,1,0)) %>%
+		      dplyr::filter(pip == 0) %>%
+		      dplyr::select(x,y,z,zgrid,layer)
+	}else{
 	grid_output = dplyr::mutate(grid_input, pip = ifelse(
 					x > area_poly$x[1] &
 					x < area_poly$x[2] &
@@ -767,8 +840,7 @@ remove_insideArea = function(grid_input, area_poly){
 					,1,0)) %>%
 		      dplyr::filter(pip == 0) %>%
 		      dplyr::select(x,y,z)
-
-
+	}
 return(grid_output)
 }
 
@@ -826,7 +898,7 @@ return(gsignals)
 #' @examples missing 
 #' @export
 #' 
-gsignal_grids_2d <- function(gcompfile,SMinput){
+gsignal_grids_2d <- function(gcompfile,SMinput,selXY){
 
 SMdif_mod = SMinput
 #SMdif_mod$xDEM = SMdif_mod$xDEM-1
@@ -835,8 +907,13 @@ SMdif_mod = SMinput
 
 #gcomp_sort = group_by(gcompfile, x,zgrid)
 #SMdif_sort = group_by(SMdif_mod, xDEM,Depth)
+if(selXY == "x"){
 gcomp_sort = arrange(gcompfile, x,zgrid)
 SMdif_sort = arrange(SMdif_mod, xDEM,Depth)
+}else{
+gcomp_sort = arrange(gcompfile, y,zgrid)
+SMdif_sort = arrange(SMdif_mod, yDEM,Depth)
+}
 SMdif_comp = data.frame(Timestep = SMdif_sort$Timestep, SMobs=SMdif_sort$value, gcomp=gcomp_sort$gcomp)
 SMdif_comp$gsignal = SMdif_comp$SMobs * SMdif_comp$gcomp
 #SMdif_comp = data.frame(Timestep = SMdif_sort$Timestep, difValue=SMdif_sort$DifValue, gcomp=gcomp_sort$gcomp)
@@ -849,6 +926,49 @@ SMdif_comp$gsignal = SMdif_comp$SMobs * SMdif_comp$gcomp
 #gsignals_allTS = data.frame(Timestep= SMdif_sort$Timestep, gsig_allTS = SMdif_sort$DifValue * SMdif_sort$gcomp/100)
 gsignals = group_by(SMdif_comp, Timestep) %>%
 		summarize(gmod = sum(gsignal))
+
+return(gsignals)
+}
+
+#' @title Calulate gravity signals 3D
+#'
+#' @description After calculating the gravity components (gcomp()), this function can be used to get real values using soil moisture data (theta). The output of the gravity signal is possible in different dimensions. 
+#'
+#' @param gcompfiles vector containing the names (complete paths or relative) of the gravity component files to be used for calculations. These files are generated using gcomp().
+#' @param theta data.frame with column structure $time, $timestep, $theta (value), $layer
+#' @param output Defines the output to be a singel value, layer or grid (default is value)
+#' ...
+#' @details Usually one needs relative gravity signals, therefore the inputed theta timeseries should be acutally delta theta vaules per timestep. The
+#' other option is calculating the differences in values per timestep of the output of this function.
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing 
+#' @export
+#' 
+gsignal_grids_3d <- function(gcompfile,SMinput, outputtype="signal"){
+
+SMdif_mod = SMinput
+#SMdif_mod$xDEM = SMdif_mod$xDEM-1
+#SMdif_mod$x = SMdif_mod$x + min(gcompfile$x)
+#SMdif_mod$y = SMdif_mod$y + min(gcompfile$y)
+
+#sort both data after same varianles
+gcomp_sort = arrange(gcompfile, x,y,zgrid)
+SMdif_sort = arrange(SMdif_mod, xDEM,yDEM,Depth)
+SMdif_comp = data.frame(Timestep = SMdif_sort$Timestep, SMobs=SMdif_sort$value, gcomp=gcomp_sort$gcomp)
+SMdif_comp$gsignal = SMdif_comp$SMobs * SMdif_comp$gcomp
+#SMdif_comp = data.frame(Timestep = SMdif_sort$Timestep, difValue=SMdif_sort$DifValue, gcomp=gcomp_sort$gcomp)
+#SMdif_comp$gsignal = SMdif_comp$difValue * SMdif_comp$gcomp / 100
+
+# select output type
+switch(outputtype,
+       signal = {
+		gsignals = group_by(SMdif_comp, Timestep) %>%
+		summarize(gmod = sum(gsignal, na.rm=T))
+       },
+       grid = {
+	        gsignals = SMdif_comp
+       }
+       ) # end switch
 
 return(gsignals)
 }
@@ -867,7 +987,7 @@ return(gsignals)
 #' @examples missing 
 #' @export
 #' 
-select_gMethod = function(xloc, yloc, zloc, gloc, gdiscr, edge, layer, layermax){
+select_gMethod = function(xloc, yloc, zloc, gloc, gdiscr, edge, layer, layermax, r_inner, r_outer,gama,rho,w){
         #distances
         rad = sqrt((xloc-gloc$x)^2+(yloc-gloc$y)^2+(zloc-gloc$z)^2) #radial distance to SG
         r2=rad^2

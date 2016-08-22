@@ -278,11 +278,13 @@ hydrus_sm <- function(date.in, date.out, name, datacol, freq="hour",aszoo=F){
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
 
-read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plotting=F, timestamps){
+read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plotting=F, timestamps, tprint_show=10){
 	# library(dplyr)
 	# library(dplyrExtras)
 
- path_hydrus = "/home/mreich/.wine/drive_c/users/Public/Documents/PC-Progress/Hydrus-1D 4.xx/Examples/Direct/" 
+ #path_hydrus = "/home/mreich/.wine/drive_c/users/Public/Documents/PC-Progress/Hydrus-1D 4.xx/Examples/Direct/" 
+ #path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus1_out/iGravPaper/" 
+ path_hydrus = "/home/mreich/Dokumente/written/iGrav_GRL_2016/Scripts/DataProcessing/HydrusModel/" 
  setwd(paste(path_hydrus, folder, "/", sep="")) 
  #read output files
  num_lines = length(readLines("T_Level.out"))
@@ -318,6 +320,7 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
  tlevel <<- tlevel
  nodal_info <<- nodal_info
  balance <<- balance
+ print("Output stored in variables tlevel, nodal_info and balance")
 
  #plotting
  if(plotting){
@@ -332,9 +335,14 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
 
  printtimes = unique(nodal.plot$Time) 
  printdates = c(datetime[1],datetime[printtimes])
+ prints = round(seq(1,t_printout, length.out=tprint_show),0)
+ printtimes.gg = printtimes[prints]
+ printdates.gg = printdates[prints]
  dates_times = data.frame(Time=printtimes, Dates=format(printdates, "%Y-%m-%d"))
+ #dates_times = data.frame(Time=printtimes, Dates=printdates)
 
- xcolors = colorRampPalette(c("blue","red", "orange","darkgreen"))(t_printout+1)
+ #xcolors = colorRampPalette(c("blue","red", "orange","darkgreen"))(t_printout+1)
+ xcolors = colorRampPalette(c("blue","red", "orange","darkgreen"))(length(printdates.gg))
  #  xcolors = colorRampPalette(c("blue","green"))(t_printout+1)
 
  #  balance.plot = melt(balance, id.vars="Time", measure.vars=colnames(balance)[-1])
@@ -361,7 +369,14 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
  tlevel.plot.filter$Boundary = factor(tlevel.plot.filter$Boundary,levels=c("Top","Root","Bottom"))
  #  tlevel.gg = ggplot(tlevel.plot.filter, aes(x=datetime, y=value, colour=Boundary)) + geom_line() + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(colour=xcolors, face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates), colour="grey") + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
  #  tlevel.gg = ggplot(tlevel.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(colour=xcolors, face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates),colour="grey") + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
- tlevel.gg = ggplot(tlevel.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + facet_grid(typeUnits ~ ., scale="free_y") + theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + geom_vline(xintercept = as.numeric(printdates),colour=xcolors, size=2, alpha=0.5) + scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
+ tlevel.gg = ggplot(tlevel.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + xlab("") + ylab ("") + 
+	 facet_grid(typeUnits ~ ., scale="free_y") + 
+	 theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) + 
+	 #geom_vline(xintercept = as.numeric(printdates),colour=xcolors, size=2, alpha=0.5) + 
+	 #scale_x_datetime(breaks=printdates, labels=date_format("%d-%m-%Y")) 
+	 geom_vline(xintercept = as.numeric(printdates.gg),colour=rep(xcolors,2), size=2, alpha=0.5) + 
+	 scale_x_datetime(breaks=printdates.gg, labels=date_format("%d-%m-%Y")) 
+ 
  choose.params.nodal = c("Head", "Moisture", "K", "Flux")
  units = data.frame(Parameters=choose.params.nodal, Unit=c("[m]", "[%]", "[m/h]", "[m/h]"))
  #  nodal.plot.filter = 	filter(nodal.plot, Parameters == choose.params.nodal) %>%
@@ -373,13 +388,19 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
  			inner_join(dates_times,by="Time") 
 			
  nodal.plot.filter$ParamUnits = factor(nodal.plot.filter$ParamUnits,levels=c("Head [m]","Moisture [%]","K [m/h]","Flux [m/h]"))
-
+ # force value to be numeric, in case a character unwanted changed class of value
+ nodal.plot.filter$value = as.numeric(nodal.plot.filter$value)
  #  nodal.gg = ggplot(nodal.plot.filter, aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "bottom",legend.text=element_text(size=10),legend.title=element_blank())
- nodal.gg = ggplot(nodal.plot.filter, aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "none") + scale_color_manual(values = xcolors)
+ nodal.gg = ggplot(filter(nodal.plot.filter, Time == printtimes.gg), aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + 
+	 	facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "none") + 
+		scale_color_manual(values = xcolors)# + 
+		#scale_x_continuous(breaks=pretty_breaks(n=6))
+
  #merge both plots together
- grid.arrange(tlevel.gg,nodal.gg,main=folder)
+ results_plot.gg = grid.arrange(tlevel.gg,nodal.gg)
+ return(results_plot.gg)
 }
- return(print("Output stored in variables tlevel, nodal_info and balance"))
+ return(print("Output generated without a plot"))
 }
 
 #' @title Read Hydrus 2D output data (rectangular mesh)
@@ -1060,6 +1081,62 @@ read_obsNode3d <- function(folder,realTime=T,startdate,plotting=F){
  return(obsNodeTheta)
 } # end function read obsNode data
 
+#' @title Read Hydrus 1D observation node data 
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @param realTime logical. Output in UTC (TRUE; default) or model time steps (FALSE).
+#' @param startdate starting date for output in UTC. Format is POSIXct.
+#' @param plotting do you want node time series plotted (default is FALSE).
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing
+
+# read_hydrus2d_irregular <- function(folder, timesteps, vertical_nodes, horizontal_nodes, t_printout, plotting=F, timestamps, px){
+read_obsNode1d <- function(folder,startdate,plotting=F){
+ library(stringr)
+ #path_hydrus = "/home/mreich/server/hydro72/hydrus2d/experiments/" 
+ #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus2d/experiments/" 
+ #path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus1_out/iGravPaper/"
+ path_hydrus = "/home/mreich/Dokumente/written/iGrav_GRL_2016/Scripts/DataProcessing/HydrusModel/"
+ setwd(paste(path_hydrus, folder, "/", sep="")) 
+ #read mesh
+ #nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
+ #nodes_max = nodes_meta[1,2]
+ #nodes_cords = read.table("MESHTRIA.TXT", header=F, skip=1 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+
+ #read obsveration node output file
+ num_lines = length(readLines("Obs_Node.out"))
+ obsNodeData = read.table(file="Obs_Node.out", header=T, skip=10, sep="",nrows=(num_lines-12), dec=".")
+ nodeNames.in = read.table(file="Obs_Node.out", header=F, skip=8, sep=")",nrows=1)
+ nodeNames = vector()
+ #for(i in 1:(length(nodeNames.in)/2)){
+ #nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i*2], "[0-9]+"))
+ #}
+ for(i in 1:(length(nodeNames.in))){
+ nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i], "[0-9]+"))
+ }
+ nodeNames = nodeNames[-length(nodeNames)]
+ #select columns
+ theta_data = select(obsNodeData, contains("theta"))
+ #generate zoo-TS
+ obsNodeTheta = zoo(theta_data, order.by=as.POSIXct(obsNodeData$time*3600, format="%H", origin=startdate))
+ ## ??
+ colnames(obsNodeTheta) = nodeNames
+ ## !!
+ #offer possibility to get output as pivot-table with node coordinates!
+ obsNode.melt = melt(zootodf(obsNodeTheta), id="time", variable.name="node", value.name="theta")
+ #extract node cordinates from cords
+ ## dont know if this line works, but its something like this..!
+ #obsNode_cords = match(nodeNames, nodes_cords)
+ #obsNode.melt = inner_join(obsNode_cords, by=)
+ #...
+ if(plotting){
+	ggplot(obsNode.melt, aes(x=time, y=theta, colour=node)) + geom_line() + facet_grid(node~.)
+ }
+ return(obsNodeTheta)
+} # end function read obsNode data
 #' @title Plot modeled nodes and observed soil moisture sensors
 #'
 #' @description plot time series of modeled observation nodes and measured soil moisture. This works with both hydrus 2D and 3D models.
@@ -1071,12 +1148,15 @@ read_obsNode3d <- function(folder,realTime=T,startdate,plotting=F){
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
-obsNodePlot = function(filename, normdata=T, dim2d=T, time_start, time_end, filtersen=F){
+obsNodePlot = function(filename, normdata=T, dim2d=T, time_start, time_end, filtersen=F, hydrusnodes){
 #load SM; filtered at 6 hourly intervalls
 #change for cluster version to maintain this file locally
-load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/SGnew_filtered_6hourmean.rdata")
-beneathBuilding = SGnew.filter[,11:18] #get sensor beneath SG building
-besidesBuilding = SGnew.filter[,19:25] #get closest sensors outside SG building
+#load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_filtered/SGnew_filtered_6hourmean.rdata")
+#beneathBuilding = SGnew.filter[,11:18] #get sensor beneath SG building
+#besidesBuilding = SGnew.filter[,19:25] #get closest sensors outside SG building
+load(file="/home/mreich/server/hygra/DataWettzell/SoilMoisture/Cluster_Data/Data_2ndPhaseFiltering/SGnew_filtered_1hourLowPass.rdata")
+beneathBuilding = SGnew.filter_1hlowPass[,1:8] #get sensor beneath SG building
+besidesBuilding = SGnew.filter_1hlowPass[,9:15] #get closest sensors outside SG building
 colnames(beneathBuilding) = c("c shallow","b shallow","d shallow","c middle high","c middle low","b deep","c deep","d deep")
 colnames(besidesBuilding) = c("a shallow","a03","a04","a06","a10","a14","a deep")
 
@@ -1113,7 +1193,10 @@ nodes.melt = cbind(melt(zootodf(get(nodes)), id="time", variable.name="node"), t
 #this is for 2D only!!
 #if(dim2d) sensors_nodes = data.frame(sensor = c("b shallow","b deep","c shallow","c middle high","c middle low","d shallow","d deep","a02","a03","a04","a06","a10","a18","a14","c deep"), node = colnames(get(nodes)))
 #above was OLD hydrus 2d model obs Nodes !!
-if(dim2d) sensors_nodes = data.frame(sensor = c("a deep","c deep","d deep","a02","a04","a03","b shallow","b deep","a14","c middle low","d shallow","c shallow","c middle high","a shallow","a10"), node = colnames(get(nodes)))
+#old structure
+#if(dim2d) sensors_nodes = data.frame(sensor = c("a deep","c deep","d deep","a02","a04","a03","b shallow","b deep","a14","c middle low","d shallow","c shallow","c middle high","a shallow","a10"), node = colnames(get(nodes)))
+#if(dim2d) sensors_nodes = data.frame(sensor = c("b shallow","b deep","c shallow","c middle high","c middle low","c deep","d shallow","d deep","a02","a03","a04","a shallow","a10","a deep","a14"), node = colnames(get(nodes)))
+if(dim2d) sensors_nodes = data.frame(sensor = hydrusnodes, node = colnames(get(nodes)))
 #3d
 else sensors_nodes = data.frame(sensor = c("a04","a shallow","a03","a06","a10","a14","b shallow","b deep","c shallow","c middle high","c middle low","d shallow","a deep","c deep","d deep"), node = colnames(get(nodes)))
 
@@ -1407,6 +1490,62 @@ data_grid = data_interpolated.melt
 return(data_grid)
 } #end function
 
+#' @title Interpolate 1D nodes to regular grid
+#'
+#' @description interpolate hydrus mesh output to regular grid
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+nodestogrid_1d = function(data_input, grid_discr, depth_split){
+library(gstat)
+library(sp)
+
+#generate regular-spaced grid
+grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr)
+#grid.xz <- expand.grid(x=1, Depth=grid.z)
+
+#filter input data for the corrsponding horizon of the model (in z-direction)
+#this is done for faster computing:
+#splitting up dataset allows different discretizations of each horizon
+
+#interpolate and "stack" for each timestep
+data_grid=data.frame()
+j=1
+for(i in unique(data_input$time)){
+data_in = filter(data_input, time==i) #filter for one timestep
+	#mutate(x=1)
+#interpolate data to new grid
+data_interpolated = data.frame(Depth = grid.z,
+			       # now manually add up values and interpolate if necessary
+			      value = c(data_in$value[1],data_in$value[1],data_in$value[1],data_in$value[2],data_in$value[3], # 0.0 - 0.4
+					mean(c(data_in$value[3],data_in$value[4]),na.rm=T), # 0.5
+					#data_in$value[4], # 0.6
+					seq(data_in$value[4],data_in$value[5], length.out=5), # 0.7 - 0.9
+					#data_in$value[5], # 1.0
+					seq(data_in$value[5],data_in$value[6], length.out=4), # 1.1 -1.3
+					#data_in$value[6], # 1.4
+					seq(data_in$value[6],data_in$value[7], length.out=4), # 1.5 -1.7
+					#data_in$value[7], # 1.8
+					rep(data_in$value[7],32)) # 1.9 - 5.0
+			      )
+data_interpolated$Timestep = j
+
+#idw.gstat = gstat(formula = value ~ 1, locations = ~ x + Depth, data = data_in, nmax = nintpmax, set = list(idp = 2))
+#data_convert <- predict(idw.gstat, grid.xz)
+#data_interpolated = cbind(Timestep = j, data_convert[,-4])
+data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth"))
+data_grid = rbind(data_grid, data_interpolated.melt)
+j = j+1
+}
+#return(grid_interpolated)
+return(data_grid)
+} #end function
+
 #' @title Interpolate 2D nodes to regular grid
 #'
 #' @description interpolate hydrus mesh output to regular grid
@@ -1440,6 +1579,62 @@ data_convert <- predict(idw.gstat, grid.xz)
 data_interpolated = cbind(Timestep = i, data_convert[,-4])
 data_interpolated.melt = melt(data_interpolated, id.vars=c("Timestep","Depth","x"))
 data_grid = rbind(data_grid, data_interpolated.melt)
+}
+#return(grid_interpolated)
+return(data_grid)
+} #end function
+
+#' @title Interpolate 2D nodes to regular grid, using kriging
+#'
+#' @description interpolate hydrus mesh output to regular grid
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+nodestogrid_2d_krige = function(grid_cords, data_input, grid_discr, depth_split,tstart){
+library(gstat)
+library(spacetime)
+library(sp)
+library(automap)
+
+# estimate kriging exemplarily for SMrange data (only one point in time)
+# afterwards, this should be done for the complete (year 2011) timeseries of SM_obs_2011
+# !!
+
+#generate regular-spaced grid
+grid.x <- seq(min(grid_cords), max(grid_cords), by=grid_discr[1])
+grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr[2])
+grid.xz <- expand.grid(x=grid.x, z=grid.z)
+
+griddata_hydrus_domain = cbind(grid.xz, dummyt=2, dummyb=4)
+gridded(griddata_hydrus_domain) = ~ x + z
+#filter input data for the corrsponding horizon of the model (in z-direction)
+#this is done for faster computing:
+#splitting up dataset allows different discretizations of each horizon
+
+#interpolate and "stack" for each timestep
+data_grid=data.frame()
+j = tstart
+for(i in unique(data_input$time)){
+data_in = filter(data_input, time==i) #filter for one timestep
+#data preparation
+colnames(data_in)[4]="z"
+coordinates(data_in)= ~x+z
+#hydrus domain grid
+vario = autofitVariogram(value ~ 1, data_in,
+	      model = c("Sph", "Exp", "Gau", "Ste", "Mat"),
+              #model = c("Mat"),
+	      verbose=T)
+#interpolate data to new grid
+data_pred = krige(value ~ 1, data_in, griddata_hydrus_domain, vario$var_model)
+# construct data.frame
+data_interpolated = data.frame(Timestep = j, Depth = coordinates(data_pred)[,2] , x = coordinates(data_pred)[,1], variable = "var1.pred", value = data_pred$var1.pred)
+data_grid = rbind(data_grid, data_interpolated)
+j = j + 1
 }
 #return(grid_interpolated)
 return(data_grid)
@@ -2164,4 +2359,119 @@ grid_stats_2d = function(input, method){
 return(grid.stats)
 }
 
+#' @title Plot timeseries input / output : Hydrus 1D
+#'
+#' @description test
+#'
+#' @param folder foldername of project to read
+#' @param vertical_nodes mumber of nodes used in the vertical model discretisation
+#' @param timesteps number of modeled timesteps
+#' @param t_printout number of model printout times
+#' @param plotting indicate if standard parameters should be plotted (TRUE); default is FALSE
+#' @param datetime vector of timestamps of the modeled timeseries. if not provided output time will be in counts of timesteps
+#' 
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing
+
+plot_hydrus1d_InOutput <- function(input_ts, tlevel_out, obsNode, timesteps, vertical_nodes, t_printout, tprint_show=10){
+  
+ datetime = timeseries$Datetime	
+
+ tlevel.plot = melt(tlevel_out, id.vars=c("datetime","Time"), measure.vars=colnames(tlevel)[2:22], variable.name = "Parameters")
+ #nodal.plot = melt(nodal_out, id.vars=c("Time", "Depth"), measure.vars=colnames(nodal_info)[-1:-3], variable.name = "Parameters")
+ obsNode.melt = melt(zootodf(obsNode), id="time", variable.name="node", value.name="theta")
+ 
+ #printtimes = unique(nodal.plot$Time) 
+ #printdates = c(datetime[1],datetime[printtimes])
+ #prints = round(seq(1,t_printout, length.out=tprint_show),0)
+ #printtimes.gg = printtimes[prints]
+ #printdates.gg = printdates[prints]
+ #dates_times = data.frame(Time=printtimes, Dates=format(printdates, "%Y-%m-%d"))
+ ##dates_times = data.frame(Time=printtimes, Dates=printdates)
+
+ ##xcolors = colorRampPalette(c("blue","red", "orange","darkgreen"))(t_printout+1)
+ #xcolors = colorRampPalette(c("blue","red", "orange","darkgreen"))(length(printdates.gg))
+ ##  xcolors = colorRampPalette(c("blue","green"))(t_printout+1)
+
+ ##  balance.plot = melt(balance, id.vars="Time", measure.vars=colnames(balance)[-1])
+ ##subsetting to choose standard parameters
+ #choose.params.tlevel = c("vTop", "vRoot", "vBot", "hTop", "hRoot", "hBot")
+ #units = data.frame(type=c("Flux","Head"), Unit=c("[m/h]","[m]"))
+ #cols = data.frame(Parameters = choose.params.tlevel, Boundary = c("Top","Root","Bottom"))
+ #type = data.frame(Parameters = c("vTop","vBot","hTop","hBot"), type=c("Flux","Flux","Head","Head"))
+ #tlevel.plot.filter = filter(tlevel.plot, grepl("vTop|vBot|hTop|hBot",Parameters)) %>%
+                         #inner_join(type,by="Parameters") %>%
+                         #inner_join(units,by="type") %>%
+			#mutate(typeUnits = paste(type,Unit)) %>%
+			#inner_join(cols, by="Parameters") %>%
+			#select(datetime, Boundary, value, Unit, typeUnits)
+
+			## tlevel.plot.filter$ParamUnits = factor(tlevel.plot.filter$ParamUnits,levels=c("Head [m]","Moisture [%]","K [m/h]","Flux [m/h]"))
+ #tlevel.plot.filter$Boundary = factor(tlevel.plot.filter$Boundary,levels=c("Top","Root","Bottom"))
+
+ ##tlevel.gg = ggplot(tlevel.plot.filter, aes(x=datetime, y=value)) + geom_line(aes(linetype=Boundary)) + 
+ #tlevel.gg = ggplot(level_data, aes(x=datetime, y=value)) + geom_line(aes(colour=Boundary)) + 
+          #xlab("") + ylab ("") + 
+	 #facet_grid(typeUnits ~ ., scale="free_y") + 
+	 #theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) 
+
+ ## tlevel data (hydrus)
+ type = data.frame(Parameters = c("vTop","vBot","hTop","hBot"), Unit=c("[m/h]","[m/h]","[m]","[m]"), WaterType=c("Flux","Flux","Head","Head"))
+ tlevel.plot.filter = filter(tlevel.plot, grepl("vTop|vBot|hTop|hBot",Parameters)) %>%
+	 		select(-Time) %>%
+ 			inner_join(type,by="Parameters") %>%
+			mutate(ParamUnits = paste(Parameters,Unit))
+ ## hydrus input time series
+ timeseries.melt = melt(timeseries, id.vars="Datetime")
+ #units_tsinput = data.frame(variable=c("Precipitation","ET0","Groundwater"), Unit=c("[mm/h]","[mm/h]","[m above lower model boundary"))
+ units_tsinput = data.frame(variable=c("Precipitation","ET0","Groundwater"), Unit=c("[mm/h]","[mm/h]","[m above LmodelB"), WaterType=c("Flux","Flux","Head"))
+ timeseries.filter = inner_join(timeseries.melt, units_tsinput,by="variable") %>%
+			mutate(ParamUnits = paste(variable,Unit))
+ colnames(timeseries.filter)[1:2] = c("datetime","Parameters")
+
+ ## observation nodes (hydrus)
+ colnames(obsNode.melt) = c("datetime","node","value")
+ obsNode.filter = mutate(obsNode.melt, Unit = "[VWC %]") %>%
+	 		mutate(WaterType = "State") %>%
+			mutate(Parameters = paste("obs node",node)) %>%
+			mutate(ParamUnits = paste("obs node",Unit)) %>%
+			select(-node)
+
+ # combine datasets
+ level_data = rbind(tlevel.plot.filter, timeseries.filter, obsNode.filter)
+ # further classification for better plotting
+ #subtypes = data.frame(Parameters=c("Precipitation","ET0","Groundwater", "vTop","vBot","hTop","hBot"),
+		       #subclass=c("Atmo","Atmo2","GW","Atmoflux","GWflux","Atmo2","GW"))
+ #level_data = inner_join(level_data, subtypes, by="Parameters")
+
+ data.gg = ggplot(level_data, aes(x=datetime, y=value)) + geom_line(aes(colour=Parameters)) + 
+ 	 xlab("") + ylab ("") + 
+	 facet_grid(ParamUnits ~ ., scale="free_y") + 
+	 #facet_grid(WaterType ~ ., scale="free_y") + 
+	 #facet_grid(subclass ~ ., scale="free_y") + 
+	 theme(axis.text.x=element_text(face="bold"),panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) 
+ 
+ #choose.params.nodal = c("Head", "Moisture", "K", "Flux")
+ #units = data.frame(Parameters=choose.params.nodal, Unit=c("[m]", "[%]", "[m/h]", "[m/h]"))
+ ##  nodal.plot.filter = 	filter(nodal.plot, Parameters == choose.params.nodal) %>%
+ #nodal.plot.filter = 	filter(nodal.plot, grepl("Head|Moisture|K|Flux",Parameters)) %>%
+			#transform(Hours=as.factor(Time)) %>%
+			#transform(Days=as.factor(Time/24)) %>%
+                         #inner_join(units,by="Parameters") %>%
+			#mutate(ParamUnits = paste(Parameters,Unit)) %>%
+                         #inner_join(dates_times,by="Time") 
+			
+ #nodal.plot.filter$ParamUnits = factor(nodal.plot.filter$ParamUnits,levels=c("Head [m]","Moisture [%]","K [m/h]","Flux [m/h]"))
+
+ ##  nodal.gg = ggplot(nodal.plot.filter, aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "bottom",legend.text=element_text(size=10),legend.title=element_blank())
+ #nodal.gg = ggplot(filter(nodal.plot.filter, Time == printtimes.gg), aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + 
+		 #facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "none") + 
+		#scale_color_manual(values = xcolors)
+ ##merge both plots together
+ #plot.gg = grid.arrange(tlevel.gg,nodal.gg)
+
+ #return(plot.gg)
+ return(data.gg)
+}
 

@@ -616,6 +616,159 @@ cclag = function(data1,data2,nmax,normdata=T,mv_win=96,ccfplot=F,resplot=F,senso
 }
 ### end function cclag
 
+#' @title Estimation of correlation coefficients and time lags of two timeseries (via cross-correlation ) - NO SNR included
+#'
+#' @description THIS IS A NEW VERSION..ojo!! has to be decided and merged afterwards!!!!
+#' @description or replace old timeshift()-function !?
+#' @description This function is based on standard time series decomposition and afterwards cross-correlation estimation between the two input datasets.
+#' @description The main aim is to find dominant time shifts between two time series (e.g. soil moisture, climate data, precipitation stations, etc).
+#'
+#' @param data1,data2 Timeseries of type .zoo.
+#' @param nmax Number of correlation values output.
+#' @param norm logical. Use normalized data (default) or not.
+#' @param mv_win window width used for signal to noise detection. value is numerical and represents data-timesteps.
+#' @param ccfplot logical. Plots for each time series interval the cross-correlation plots. Default is F, own output plots are provided. Should be kept FALSE.
+#' @param resplot logical. Plots an overall plot with results of correlation coefficients, lagtimes and signal to noise relationships of the complete datasets.
+#' @param sensor1,sensor2 names used for the input datasets for plotting and in the output table.
+#' @param ... Further parameters passed to internal functions.
+
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples outside.cor = ccf.zoo(besidesBuilding$mux43_04,besidesBuilding$mux43_08,5,T,T,T,24,17521)
+#' @export
+#' 
+
+cclag_nosnr = function(data1,data2,data1.raw,data2.raw,nmax,normdata=T,mv_win=96,ccfplot=F,resplot=F,sensor1="data1", sensor2="data2",...){
+  #stucture of function:
+	#* merge dataset
+	#* calculate snr ratio
+	#* continue with snr_signal as time series
+	#* normalize data
+	#* detrend data
+	#* cross-correlate datasets
+  Sys.setenv(TZ = "GMT")
+  #get both datasets to use the same timestamp-frequency
+  data1_sameF = aggregate(data1, function(x) as.POSIXct(trunc(x, "hour"), tz = "GMT"), mean, na.rm=T)
+  data2_sameF = aggregate(data2, function(x) as.POSIXct(trunc(x, "hour"), tz = "GMT"), mean, na.rm=T)
+  data1_sameF.raw = aggregate(data1.raw, function(x) as.POSIXct(trunc(x, "hour"), tz = "GMT"), mean, na.rm=T)
+  data2_sameF.raw = aggregate(data2.raw, function(x) as.POSIXct(trunc(x, "hour"), tz = "GMT"), mean, na.rm=T)
+  #merging all data together can result in problems when na.approx doesn't find 2 non-NA values for interpolation
+  #therefor merge has to be used with option all=F
+  #data.merge = merge(data1_sameF, data2_sameF, all=T, fill= NA)
+  data.merge = merge(data1_sameF, data2_sameF, all=F)
+  data.merge.raw = merge(data1_sameF.raw, data2_sameF.raw, all=F)
+  #merge the datasets, depending on the analysis time
+  #this is necessary to avoid na.approx-problems with too many NA's
+  #and on the other hand don't loose any data if stl=F
+  #aggregate to hourly time
+  #   data1.agg = period.apply(data1, endpoints(data1,"hours"), mean, na.rm=T)
+  #   data2.agg = period.apply(data2, endpoints(data2,"hours"), mean, na.rm=T)
+  #split in yearly intervalls
+  ts.years = endpoints(data.merge, "years")
+  data1.year=list()
+  data2.year=list()
+  data1.year.raw=list()
+  data2.year.raw=list()
+  for(i in 1:(length(ts.years)-1)){
+	data1.year[[i]]=data.merge[(ts.years[i]+1):ts.years[i+1],1]
+	data2.year[[i]]=data.merge[(ts.years[i]+1):ts.years[i+1],2]
+	data1.year.raw[[i]]=data.merge.raw[(ts.years[i]+1):ts.years[i+1],1]
+	data2.year.raw[[i]]=data.merge.raw[(ts.years[i]+1):ts.years[i+1],2]
+  }
+  #run this loop for all time intervalls (standard = years)
+  data_plots = list() # prepare list for possible single time series interval plots
+  for(i in 1:(length(ts.years)-1)){
+	#use NON-decomposed TS; stl = decomposition was excluded in this newer version!
+	SNRratio_data1 = snr_ratio_2TS(data1.year.raw[[i]],data1.year[[i]],T,F) #rmNA=T, plotting=F 
+	SNRratio_data2 = snr_ratio_2TS(data2.year.raw[[i]],data2.year[[i]],T,F) #rmNA=T, plotting=F
+	#data1_signal_sd = sd(data1.year[[i]], na.rm=T)
+	#data1_noise_sd = sd(data1.year.raw[[i]], na.rm=T)
+	#SNRratio_data1 = data1_noise_sd/data1_signal_sd
+	#data2_signal_sd = sd(data2.year[[i]], na.rm=T)
+	#data2_noise_sd = sd(data2.year.raw[[i]], na.rm=T)
+	#SNRratio_data2 = data2_noise_sd/data2_signal_sd
+
+	#normalize data
+  	if(normdata==T){ #use normalize data as input
+          #data1.year.norm = lapply(data1.year, function(x) (x - mean(x, na.rm=T))/sd(x,na.rm=T))
+          #data2.year.norm = lapply(data2.year, function(x) (x - mean(x, na.rm=T))/sd(x,na.rm=T))
+  		data1_year_norm = normalize(data1.year[[i]])
+  		data2_year_norm = normalize(data2.year[[i]])
+  	}else{ #dont normalize data
+  		data1_year_norm = data1.year[[i]]
+  		data2_year_norm = data2.year[[i]]
+  	}
+	#detrend both time series, using linear fit
+	#method uses least-squares fit by an regression analysis
+	#datasets needs to be approximized
+	#if not, lm() returns shorter datasets (if NAs are within the data)
+	#this would lead to wrong detrending when resting data(org)-trend!
+	#data1.approx = na.approx(coredata(data1_year_norm))
+	data1.approx = na.approx(data1_year_norm)
+	data1.model = lm(data1.approx ~ I(1:length(data1.approx)))
+	data1.trend = predict(data1.model)
+	#summary(model)
+	#removing the trend from "raw"-data
+	data1.in = data1.approx - data1.trend
+	#abline(data1.model)
+	#lines(data1.detrended, col="blue")
+	#data2.approx = na.approx(coredata(data2_year_norm))
+	data2.approx = na.approx(data2_year_norm)
+	data2.model = lm(data2.approx ~ I(1:length(data2.approx)))
+	data2.trend = predict(data2.model)
+	#summary(model)
+	#removing the trend from "raw"-data
+	data2.in = data2.approx - data2.trend
+	#abline(data2.model)
+	#lines(data2.detrended, col="blue")
+	#time frequency of dataset
+    	timedif.data = as.numeric(difftime(index(data1.year[[i]][2]),index(data1.year[[i]][1]), units="hours"))
+	freq = 24/timedif.data #frequency in hours
+	year=unique(format(index(data1.year[[i]]), "%Y")) #get year from current TS
+	# cross-correlation
+	#browser()
+	#input CANNOT be zoo-object!! no error messge but wrong results!
+	#OLD: res = ccf(data1.in,data2.in,na.action=na.pass,plot=T,main=max(year))
+	res = ccf(coredata(data1.in),coredata(data2.in),na.action=na.pass,plot=F,main=max(year))
+	# browser()
+    	acf.maxs=NA; cornmax=NA
+    	for(ii in 1:nmax){ #finding nth max values
+		 if(is.na(sort(res$acf, TRUE)[ii])==T){ cornmax[ii]=NA; acf.maxs[ii]=NA; next}
+		 cornmax[ii] = sort(res$acf, TRUE)[ii]
+     		 acf.maxs[ii] = which(res$acf == cornmax[ii])
+   	}
+    	lags.dom = res$lag[acf.maxs]
+	#convert output from frequency to time units[hours]
+	lags.real = lags.dom*timedif.data
+	#construct result output table
+	if(i == 1){ results = data.frame(year=rep(year,nmax),SNRdata1=rep(SNRratio_data1,nmax),SNRdata2=rep(SNRratio_data2,nmax),correlation=cornmax,lagtime=lags.real)
+	}else{ #in all years / intervalls but the first time
+  	res_year = data.frame(year=rep(year,nmax),SNRdata1=rep(SNRratio_data1,nmax),SNRdata2=rep(SNRratio_data2,nmax),correlation=cornmax,lagtime=lags.real) #define data structure to show results
+	results = rbind(results, res_year)
+	}
+	#plotting
+	if(ccfplot==TRUE){
+		plotdata1_year = merge.zoo(original=data1.year[[i]],residual=data1.in, all=T, fill=NA)
+		plotdata2_year = merge.zoo(original=data2.year[[i]],residual=data2.in, all=T, fill=NA)
+	data1.ts.resh = melt(zootodf(plotdata1_year), id="time")
+	data2.ts.resh = melt(zootodf(plotdata2_year), id="time")
+	datasets = rbind(cbind(data1.ts.resh, Sensor=factor(sensor1)),cbind(data2.ts.resh, Sensor=factor(sensor2)))
+	TS.plot= ggplot(datasets, aes(x=time, y=value, colour=Sensor)) + geom_line() + facet_grid(variable ~ ., scale="free_y") + xlab("") + ylab("Signal") 
+	dataccf = data.frame(Lag=res$lag[,,1], Correlation=res$acf[,,1])
+	ccf.plot= ggplot(dataccf, aes(x=Lag, y=Correlation)) + geom_bar(stat = "identity")
+	#combining plots
+	grid.arrange(TS.plot, ccf.plot,top=textGrob(paste(sensor1,"&", sensor2, ":", max(year), sep=" "), gp=gpar(cex=1.5)))
+	data_plots[[i]] = recordPlot() #store plot in variable
+	}
+   }
+   if(resplot == TRUE){
+	   #here goes ggplot of result plot
+   }
+    ccf_plots <<- data_plots
+    return(results)
+}
+### end function cclag
+
 #' @title Event-based calulation of correlation coefficients, lagtimes and signal to noise ratios
 #'
 #' @description NEW VERSION of ccf_events !! which uses cclag() instead of timeshift()

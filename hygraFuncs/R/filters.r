@@ -1,4 +1,4 @@
-#
+
 #' @title Filtering raw soil moisture data
 #'
 #' @description Filtering raw soil moisture data with adjustable filter criterias.
@@ -16,7 +16,7 @@
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples example MISSING
 #' @export
-#' 
+ 
 filter_soildata <- function(file.input,val.max=1,val.min=0,val.incr,val.decr,lag.max, per.max, per.min, lag.mean,k){
 # source("/home/mreich/R-gravity-package/package09/hygra_test/R/convertzootodataframe.r")
 # require(xts)
@@ -60,7 +60,7 @@ return(file.out)
 }
 
 ### end filtering soil data ###
-#
+
 #' @title Signal to noise ratio
 #'
 #' @description Calculates signal to noise ratio (SNR) based on moving average window signal correction.
@@ -88,6 +88,38 @@ snr_ratio = function(data.in, mv_win, rmNA = T, plotting=F){
 	if(snr_ratio > 1) snr_pass = 1 #snr test passed, signal seems reasonable
 	else snr_pass = 0 #snr test failed, signal is too small
 	if(plotting==T) plot(dataset,xlab = "", main=paste(deparse(substitute(data.in)),": SNR = ",format(snr_ratio,digits=2)," (mavg window: ",mv_win/4," hours)",sep=""))
+	return(snr_ratio)
+}
+
+#' @title Signal to noise ratio (inputing directly 2 time series (raw and signal)
+#'
+#' @description Calculates signal to noise ratio (SNR) based on moving average window signal correction.
+#'
+#' @param data.in input time series dataset (zoo)
+#' @param mv_win width of moving average window, in observation time steps (no explicit time unit)
+#' @param rmNA logical. should NA values be remove within the forming of mean values? default is TRUE
+#' @param plotting logical. if true (not default) datasets are plotted
+#' @details The output is a numeric number, representative for the complete input time period.
+#' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+#' 
+
+snr_ratio_2TS = function(data.in.raw, data.in.signal, rmNA = T, plotting=F){
+	dataset = merge(data.in.raw,data.in.signal,all=F)
+	colnames(dataset) = c("raw","signal")
+	dataset$noise = dataset$raw - dataset$signal
+	signal_amp = abs(range(dataset$signal, na.rm=T)[1] - range(dataset$signal, na.rm=T)[2])
+	signal_sd = sd(dataset$signal, na.rm=T)
+	noise_sd = sd(dataset$noise, na.rm=T)
+	#noise_amp = abs(range(dataset$noise, na.rm=T)[1] - range(dataset$noise, na.rm=T)[2])
+	#data_snr = signal_amp/noise_amp
+	snr_ratio = signal_amp / (2*noise_sd)
+	#snr_ratio = noise_sd/signal_sd
+
+	if(snr_ratio > 1) snr_pass = 1 #snr test passed, signal seems reasonable
+	else snr_pass = 0 #snr test failed, signal is too small
+	if(plotting==T) plot(dataset,xlab = "", main=paste(deparse(substitute(data.in.raw)),": SNR = ",format(snr_ratio,digits=2),sep=""))
 	return(snr_ratio)
 }
 
@@ -119,3 +151,36 @@ snr_filter = function(data.in, mv_win, rmNA = T, plotting=F){
 	if(plotting==T) plot(dataset,xlab = "", main=paste(deparse(substitute(data.in)),": SNR = ",format(snr_ratio,digits=2)," (mavg window: ",mv_win/4," hours)",sep=""))
 	return(snr_signal)
 }
+
+#' @title Normalize data 
+#'
+#' @description Normalize data in subtracting the mean and dividing by the standard deviation.
+#'
+#' @param x input dataset
+#' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+#' 
+
+normalize = function(x){
+	data_norm = (x - mean(x, na.rm=T))/sd(x,na.rm=T)
+	return(data_norm)
+}
+
+#' @title Normalize data only sbutracting mean
+#'
+#' @description Normalize data in subtracting the mean and dividing by the standard deviation.
+#'
+#' @param x input dataset
+#' @references Marvin Reich (2015), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+#' 
+
+normalize_mean = function(x){
+	data_norm = (x - mean(x, na.rm=T))
+	return(data_norm)
+}
+
+
+

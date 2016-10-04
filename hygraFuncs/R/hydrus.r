@@ -286,7 +286,7 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
  #path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus1_out/iGravPaper/" 
  path_hydrus = "/home/mreich/Dokumente/written/iGrav_GRL_2016/Scripts/DataProcessing/HydrusModel/" 
  setwd(paste(path_hydrus, folder, "/", sep="")) 
- #read output files
+ ##read output files tlevel
  num_lines = length(readLines("T_Level.out"))
  tlevel = read.table(file="T_Level.out", header=F, skip=9, sep="",nrows=(num_lines-10), dec=".")
  colnames(tlevel) = c("Time","rTop","rRoot","vTop","vRoot","vBot","sum(rTop)","sum(rRoot)","sum(vTop)","sum(vRoot)","sum(vBot)","hTop","hRoot","hBot","RunOff","sum(RunOff)","Volume","sum(Infil)","sum(Evap)","TLevel","Cum(WTrans)","SnowLayer")
@@ -294,44 +294,68 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
  tlevel$Timecut=round(tlevel$Time,0)
  tlevel = tlevel[!duplicated(tlevel$Timecut),]
 
- nodal_infoTIME = read.table(file="Nod_Inf.out", header=F, skip=7, sep="", nrows=1, dec=".")
- nodal_infoIN = read.table(file="Nod_Inf.out", header=F, skip=13, sep="", nrows=vertical_nodes, dec=".")
- nodal_info = cbind(rep(nodal_infoTIME[,2],times=vertical_nodes), nodal_infoIN)
- balanceTIME = read.table(file="Balance.out", header=F, skip=20, sep="", nrows=1, dec=".")
- balanceVOL = read.table(file="Balance.out", header=F, skip=30, sep="", nrows=1, dec=".")
- balancePER = read.table(file="Balance.out", header=F, skip=31, sep="", nrows=1, dec=".")
- balance = cbind(balanceTIME[,3], balanceVOL[,3], balancePER[,3])
+ #nodal_infoTIME = read.table(file="Nod_Inf.out", header=F, skip=7, sep="", nrows=1, dec=".")
+ #nodal_infoIN = read.table(file="Nod_Inf.out", header=F, skip=13, sep="", nrows=vertical_nodes, dec=".")
+ #nodal_info = cbind(rep(nodal_infoTIME[,2],times=vertical_nodes), nodal_infoIN)
+ #balanceTIME = read.table(file="Balance.out", header=F, skip=20, sep="", nrows=1, dec=".")
+ #balanceVOL = read.table(file="Balance.out", header=F, skip=30, sep="", nrows=1, dec=".")
+ #balancePER = read.table(file="Balance.out", header=F, skip=31, sep="", nrows=1, dec=".")
+ #balance = cbind(balanceTIME[,3], balanceVOL[,3], balancePER[,3])
 
- for(i in 2:(t_printout+1)){
- nodal_infoTIME = read.table(file="Nod_Inf.out", header=F, skip=((i-1)*(vertical_nodes+9) + 7), sep="", nrows=1, dec=".")
- nodal_infoIN = read.table(file="Nod_Inf.out", header=F, skip=((i-1)*(vertical_nodes+9) + 13), sep="", nrows=vertical_nodes, dec=".")
- nodal_infoDATA = cbind(rep(nodal_infoTIME[,2],times=vertical_nodes), nodal_infoIN)
- nodal_info = rbind(nodal_info, nodal_infoDATA)
- if(i == (t_printout+1)) break
- balanceTIME = read.table(file="Balance.out", header=F, skip=((i-1)*15+20), sep="", nrows=1, dec=".")
- balanceVOL = read.table(file="Balance.out", header=F, skip=((i-1)*15+30), sep="", nrows=1, dec=".")
- balancePER = read.table(file="Balance.out", header=F, skip=((i-1)*15+31), sep="", nrows=1, dec=".")
- balanceDATA = cbind(balanceTIME[,3], balanceVOL[,3], balancePER[,3])
- balance = rbind(balance, balanceDATA)
- }
- colnames(nodal_info) = c("Time","Node","Depth","Head","Moisture","K","C","Flux","Sink","Kappa","v/KsTop","Temp")
- colnames(balance) = c("Time","WaterBalanceVolume","WaterBalancePercent")
+system("sed -n '/^[[:space:]]*[T]/p' Nod_Inf.out > bash_time.out")
+system("sed -n '/^[[:space:]]*[0-9]/p' Nod_Inf.out > bash_data.out")
+system("sed -n '/^[[:space:]]*[0-9]/p' Profile.out > bash_profile.out")
+
+printout = read.table(file="bash_time.out", dec=".")
+time_print = printout[,2]
+data_all = read.table(file="bash_data.out", dec=".")
+profile_data = read.table(file="bash_profile.out", dec=".")
+grid_cords = profile_data[,2]
+#nodes_max = 1001
+
+th_h_profiles = data.frame(Time=rep(time_print, each=vertical_nodes),
+		      #x=rep(grid_cords$x, each=length(time_print)),
+		      #y=rep(grid_cords$y, each=length(time_print)),
+		      Depth=rep(grid_cords, length(time_print)),
+		      Moisture=data_all[,4],Head=data_all[,3],
+		      K=data_all[,5], Flux=data_all[,7])
+## add real timestamp information
+ #th_h_profiles = mutate(th_h_profiles, datetime=as.POSIXct(Time, origin=timestamps[1], tz="GMT"))
+## store variable "outside" of function for further usage
+ th_h_profiles <<- th_h_profiles
+ print("Output stored in th_h_profiles")
+
+ #for(i in 2:(t_printout+1)){
+ #nodal_infoTIME = read.table(file="Nod_Inf.out", header=F, skip=((i-1)*(vertical_nodes+9) + 7), sep="", nrows=1, dec=".")
+ #nodal_infoIN = read.table(file="Nod_Inf.out", header=F, skip=((i-1)*(vertical_nodes+9) + 13), sep="", nrows=vertical_nodes, dec=".")
+ #nodal_infoDATA = cbind(rep(nodal_infoTIME[,2],times=vertical_nodes), nodal_infoIN)
+ #nodal_info = rbind(nodal_info, nodal_infoDATA)
+ #if(i == (t_printout+1)) break
+ #balanceTIME = read.table(file="Balance.out", header=F, skip=((i-1)*15+20), sep="", nrows=1, dec=".")
+ #balanceVOL = read.table(file="Balance.out", header=F, skip=((i-1)*15+30), sep="", nrows=1, dec=".")
+ #balancePER = read.table(file="Balance.out", header=F, skip=((i-1)*15+31), sep="", nrows=1, dec=".")
+ #balanceDATA = cbind(balanceTIME[,3], balanceVOL[,3], balancePER[,3])
+ #balance = rbind(balance, balanceDATA)
+ #}
+ #colnames(nodal_info) = c("Time","Node","Depth","Head","Moisture","K","C","Flux","Sink","Kappa","v/KsTop","Temp")
+ #colnames(balance) = c("Time","WaterBalanceVolume","WaterBalancePercent")
  tlevel = mutate(tlevel, datetime=timestamps)
  tlevel <<- tlevel
- nodal_info <<- nodal_info
- balance <<- balance
- print("Output stored in variables tlevel, nodal_info and balance")
+ #nodal_info <<- nodal_info
+ #balance <<- balance
+ #print("Output stored in variables tlevel, nodal_info and balance")
 
  #plotting
  if(plotting){
 # library(ggplot2)
-# library(reshape2)
+ #library(reshape2)
 # library(dplyrExtras)
 # library(grid)
 # library(gridExtra)
 # library(scales)
  tlevel.plot = melt(tlevel, id.vars=c("datetime","Time"), measure.vars=colnames(tlevel)[2:22], variable.name = "Parameters")
- nodal.plot = melt(nodal_info, id.vars=c("Time", "Depth"), measure.vars=colnames(nodal_info)[-1:-3], variable.name = "Parameters")
+ #nodal.plot = melt(nodal_info, id.vars=c("Time", "Depth"), measure.vars=colnames(nodal_info)[-1:-3], variable.name = "Parameters")
+ nodal.plot = melt(th_h_profiles, id.vars=c("Time", "Depth"), measure.vars=c("Moisture","Head","K","Flux"), variable.name = "Parameters")
 
  printtimes = unique(nodal.plot$Time) 
  printdates = c(datetime[1],datetime[printtimes])
@@ -393,6 +417,7 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
  #  nodal.gg = ggplot(nodal.plot.filter, aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "bottom",legend.text=element_text(size=10),legend.title=element_blank())
  nodal.gg = ggplot(filter(nodal.plot.filter, Time == printtimes.gg), aes(x=value, y=Depth, colour=Dates, group=Dates)) + geom_path() + xlab("") + ylab ("Depth [m]") + 
 	 	facet_grid(.~ParamUnits, scale="free_x") + theme(legend.position = "none") + 
+		ylim(max(grid_cords),0) +
 		scale_color_manual(values = xcolors)# + 
 		#scale_x_continuous(breaks=pretty_breaks(n=6))
 

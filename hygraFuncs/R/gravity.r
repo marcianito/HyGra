@@ -386,7 +386,45 @@ grid.surface <- expand.grid(x=grid.x, y=grid.y)
 #interpolate dem data to new grid
 idw.gstat = gstat(formula = z ~ 1, locations = ~ x + y, data = demgrid_in, nmax = 4, set = list(idp = 2))
 surface = predict(idw.gstat, grid.surface)
-gcomp_grid = cbind(grid.xyz[,1:2],z=surface[,3]-grid.xyz$Depth,zgrid=grid.xyz$Depth, layer=rep(seq(1,length(grid.z), by=1),each=(length(grid.x)*length(grid.y))))
+gcomp_grid = cbind(grid.xyz[,1:2],z=surface[,3]-grid.xyz$Depth,zgrid=grid.xyz$Depth, layer=rep(c(1,seq(1,(length(grid.z)-1), by=1)),each=(length(grid.x)*length(grid.y))))
+return(gcomp_grid)
+} #end function
+
+#' @title Interpolate grid(df) to 3D grid
+#'
+#' @description interpolate DEM to necessary grid of corresponding layer
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+demgrid_to_gcompgrid_Edges = function(demgrid_in, grid_discr, depth_split, ownSurfaceGrid=F, grid.surface){
+library(gstat)
+#dem.melt = convert_demtodf(dem, dem.info)
+#generate regular-spaced grid
+# temporarily hardgecoded hydrus 3d Area
+#grid.x <- seq(4564029.26662,4564049.35606 , by=grid_discr[1])
+#grid.y <- seq(5445650.34147,5445670.49548 , by=grid_discr[2])
+if(ownSurfaceGrid){
+	grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr$z)
+	#grid.xyz <- expand.grid(grid.surface, Depth=grid.z)
+	grid.xyz <- data.frame(x=rep(grid.surface$x,length(grid.z)),y=rep(grid.surface$y,length(grid.z)), Depth=rep(grid.z, each=length(grid.surface[,1])))
+	#grid.surface <- expand.grid(x=grid.x, y=grid.y)
+}else{
+	grid.x <- seq(min(demgrid_in$x, na.rm=T), max(demgrid_in$x, na.rm=T), by=grid_discr$x)
+	grid.y <- seq(min(demgrid_in$y, na.rm=T), max(demgrid_in$y, na.rm=T), by=grid_discr$y)
+	grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr$z)
+	grid.xyz <- expand.grid(x=grid.x, y=grid.y, Depth=grid.z)
+	grid.surface <- expand.grid(x=grid.x, y=grid.y)
+}
+
+#interpolate dem data to new grid
+idw.gstat = gstat(formula = z ~ 1, locations = ~ x + y, data = demgrid_in, nmax = 4, set = list(idp = 2))
+surface = predict(idw.gstat, grid.surface)
+gcomp_grid = cbind(grid.xyz[,1:2],z=surface[,3]-grid.xyz$Depth,zgrid=grid.xyz$Depth, layer=rep(seq(1,length(grid.z), by=1),each=length(grid.surface$x)))
 return(gcomp_grid)
 } #end function
 
@@ -497,140 +535,7 @@ return(surface)
 #' @examples example MISSING
 #' @export
 
-gcomp_raw <- function(g_grid, senloc, g_discr, edge){
-#constants
-gama <- 6.673e-11 #m³/(kg*s²)
-rho <- 1000 #kg/m³
-#w <- 1e8 #gravity units µGal
-w <- 1e9 #gravity units nm/s²
-#radius criteria
-#r2exac=2^2 #bei 2.5 x 2.5 cellsizes ~=   50 m
-#r2macm=9^2 #bei 2.5 x 2.5 cellsizes ~= 1000 m
-r_inner = 50 #[m]
-r_outer = 1000 #[m]
-## function: heart of gravity component calculation
-# estiamte distances of actual point and gravity sensor
-# calculate needed gravity cell (volumina) information / locations..
-# cell midpoint = actual grid (mesh) points (x,y,z)
-# choose gravity estimation method after distance of cell to gravity sensor
-
-#select_gMethod = function(xloc, yloc, zloc, gloc, gdiscr, edge, layer, layermax){
-        ##distances
-        #rad = sqrt((xloc-gloc$x)^2+(yloc-gloc$y)^2+(zloc-gloc$z)^2) #radial distance to SG
-        #r2=rad^2
-        #dr2=gdiscr$x^2+gdiscr$y^2+gdiscr$z^2 #radial "size" of DEM / coordinate-data system
-        #f2=r2/dr2 #abstand zelle-SG / diagonale aktueller berechnungs-quader
-        ## different methods after the distance from mass to SG
-        ##if (f2<=r2exac){ #very close to SG
-        #if (rad <= r_inner){ #very close to SG
-		#xl=xloc-(0.5*gdiscr$x);xr=xloc+(0.5*gdiscr$x)
-		#yl=yloc-(0.5*gdiscr$y);yr=yloc+(0.5*gdiscr$y)
-		#if(layer==1 | layer == layermax){
-			#if((edge=="first" & layer==1) | (edge=="both" & layer==1)){ # first z-layer
-			 #Zint =zloc 
-			 #Zend = zloc-(0.5*gdiscr$z)
-			#}
-			#if((edge =="last" & layer==layermax) | (edge=="both" & layer==layermax)){ # last z-layer
-			 #Zint = zloc+(0.5*gdiscr$z)
-			 #Zend = zloc
-			#}
-			#else{
-			 #Zint = zloc+(0.5*gdiscr$z)
-			 #Zend = zloc-(0.5*gdiscr$z)
-			#}
-		#}
-		#else{ # all other z-layers
-		#Zint = zloc+(0.5*gdiscr$z)
-		#Zend = zloc-(0.5*gdiscr$z)
-		#}
-           #gcomp_cell=forsberg_raw(gama,w,xl,xr,yl,yr,Zint,Zend,gloc$x,gloc$y,gloc$z,rho) #unit depends on w
-        #}
-         ##if(f2>r2macm){ #very far from SG
-         #if(rad >= r_outer){ #very far from SG
-		#if(layer==1 | layer == layermax){
-			#if((edge=="first" & layer==1) | (edge=="both" & layer==1)){ # first z-layer
-			   #zdiscr = 0.5*gdiscr$z
-			  #zloc_mid = zloc+0.5*zdiscr
-			#}
-			#if((edge =="last" & layer==layermax) | (edge=="both" & layer==layermax)){ # last z-layer
-			 #zdiscr = 0.5*gdiscr$z
-			   #zloc_mid = zloc-0.5*zdiscr
-			#}
-			#else{
-			 #zloc_mid = zloc
-			 #zdiscr = gdiscr$z
-			#}
-		#}
-		#else{ # all other z-layers
-		 #zloc_mid = zloc
-		 #zdiscr = gdiscr$z
-		#}
-           #gcomp_cell=pointmass(gama,zloc_mid,gloc$z,gdiscr$x,gdiscr$y,zdiscr,rad,w,rho) #unit depends on w
-        #}
-        ##if(f2>r2exac & f2<r2macm){ #in the "middlle"
-        #if(rad > r_inner & rad < r_outer){ #in the "middlle"
-		#if(layer==1 | layer == layermax){
-			#if((edge=="first" & layer==1) | (edge=="both" & layer==1)){ # first z-layer
-			   #zdiscr = 0.5*gdiscr$z
-			  #zloc_mid = zloc+0.5*zdiscr
-			#}
-			#if((edge =="last" & layer==layermax) | (edge=="both" & layer==layermax)){ # last z-layer
-			 #zdiscr = 0.5*gdiscr$z
-			   #zloc_mid = zloc-0.5*zdiscr
-			#}
-			#else{
-			 #zloc_mid = zloc
-			 #zdiscr = gdiscr$z
-			#}
-		#}
-		#else{ # all other z-layers
-		 #zloc_mid = zloc
-		 #zdiscr = gdiscr$z
-		#}
-           #gcomp_cell=macmillan_raw(gama,xloc,yloc,zloc_mid,gloc$x,gloc$y,gloc$z,gdiscr$x,gdiscr$y,zdiscr,rad,w,rho) #unit depends on w
-        #}
-## output one value: gravity component for corresponding input cell
-#return (gcomp_cell)
-#}
-
-#prepare SG-data-file
-# gravity component is just a new column on g_grid
-# containing the g_comp, conditionally to some causes, calculated using one of the 3 methods
-# !! important
-# due to maintaining original grid, gravity component cells (volumini) of the first row (surface) and last row (lower boundary),
-# have to be adjusted to only HALF SIZE (value), due to cut off
-# advantage of this approach:
-# maintaining org. grid facilitates trasnformation of (hydrological) model output
-# because no grid_transformation is needed
-# if NOT, use layer "would be lost"
-# due to midpoint of g component cell (volumina)
-# here the calculations for each line (grid point)
-## ! problem with dplyr-way: 
-#g_grid_result = mutate(g_grid, gcomp = select_gMethod(x,y,z,senloc,g_discr))
-
-for(i in 1:length(g_grid[,1])){
-g_grid$gcomp[i] = select_gMethod(g_grid$x[i],g_grid$y[i],g_grid$z[i],senloc,g_discr,edge, g_grid$layer[i], max(g_grid$layer),r_inner,r_outer,gama,rho,w)
-}
-
-return(g_grid)
-}
-
-### end gcomp_raw ###
-
-#' @title Calculate gravity component, WITHOUT umbrella effect
-#'
-#' @description Calculates the gravity components (100percent values) for a given DEM using a nested approach
-#'
-#' @param g_grid grid for which to calculate gravity components. (generally derived from DEM of region in combination with hydrological modeling mesh/grid).
-#' @param senloc coordinates of gravity sensor location. data.frame with x,y,z columns.
-#' @param g_discr discretization of g_grid in differences in x,y,and z-direction. they have to be uniform steps!
-#' @param edge if grid to calulate is located on a domain edge (top or bottom). for top set edge='first', for bottom set edge='last'.
-#' @details missing
-#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
-#' @examples example MISSING
-#' @export
-
-gcomp_raw_dplyr <- function(g_grid, senloc, g_discr, edge){
+gcomp_raw_Edges <- function(g_grid, senloc, g_discr, edge){
 #constants
 gama <- 6.673e-11 #m³/(kg*s²)
 rho <- 1000 #kg/m³
@@ -658,7 +563,55 @@ layern_max = max(g_grid$layer)
 # rowwise
 g_grid = g_grid %>%
 	rowwise() %>%
-	mutate(gcomp = select_gMethod(x,y,z,senloc,g_discr, edge, layer, layern_max,r_inner,r_outer,gama,rho,w))
+	mutate(gcomp = select_gMethod_Edges(x,y,z,senloc,g_discr, edge, layer, layern_max,r_inner,r_outer,gama,rho,w)) %>%
+	ungroup()
+# apply
+
+return(g_grid)
+}
+
+#' @title Calculate gravity component, WITHOUT umbrella effect
+#'
+#' @description Calculates the gravity components (100percent values) for a given DEM using a nested approach
+#'
+#' @param g_grid grid for which to calculate gravity components. (generally derived from DEM of region in combination with hydrological modeling mesh/grid).
+#' @param senloc coordinates of gravity sensor location. data.frame with x,y,z columns.
+#' @param g_discr discretization of g_grid in differences in x,y,and z-direction. they have to be uniform steps!
+#' @param edge if grid to calulate is located on a domain edge (top or bottom). for top set edge='first', for bottom set edge='last'.
+#' @details missing
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples example MISSING
+#' @export
+
+gcomp_raw <- function(g_grid, senloc, g_discr){
+#constants
+gama <- 6.673e-11 #m³/(kg*s²)
+rho <- 1000 #kg/m³
+#w <- 1e8 #gravity units µGal
+w <- 1e9 #gravity units nm/s²
+#radius criteria
+#r2exac=2^2 #bei 2.5 x 2.5 cellsizes ~=   50 m
+#r2macm=9^2 #bei 2.5 x 2.5 cellsizes ~= 1000 m
+r_inner = 50 #[m]
+r_outer = 1000 #[m]
+#prepare SG-data-file
+# gravity component is just a new column on g_grid
+# containing the g_comp, conditionally to some causes, calculated using one of the 3 methods
+# !! important
+# due to maintaining original grid, gravity component cells (volumini) of the first row (surface) and last row (lower boundary),
+# have to be adjusted to only HALF SIZE (value), due to cut off
+# advantage of this approach:
+# maintaining org. grid facilitates trasnformation of (hydrological) model output
+# because no grid_transformation is needed
+# if NOT, use layer "would be lost"
+# due to midpoint of g component cell (volumina)
+# here the calculations for each line (grid point)
+
+# rowwise
+g_grid = g_grid %>%
+	rowwise() %>%
+	mutate(gcomp = select_gMethod(x,y,z,senloc,g_discr,r_inner,r_outer,gama,rho,w)) %>%
+	ungroup()
 # apply
 
 return(g_grid)
@@ -898,9 +851,9 @@ return(gsignals)
 #' @examples missing 
 #' @export
 #' 
-gsignal_grids_2d <- function(gcompfile,SMinput,selXY){
+gsignal_grids_2d <- function(gcompfile,SMdif_mod,selXY){
 
-SMdif_mod = SMinput
+#SMdif_mod = SMinput
 #SMdif_mod$xDEM = SMdif_mod$xDEM-1
 #SMdif_mod$x = SMdif_mod$x + min(gcompfile$x)
 #SMdif_mod$y = SMdif_mod$y + min(gcompfile$y)
@@ -944,34 +897,140 @@ return(gsignals)
 #' @examples missing 
 #' @export
 #' 
-gsignal_grids_3d <- function(gcompfile,SMinput, outputtype="signal"){
+# gsignal_grids_3d <- function(gcompfile,SMdif_mod, outputtype="signal"){
+gsignal_grids_3d <- function(gcompfile,SMdif_mod, realdates=T){
 
-SMdif_mod = SMinput
-#SMdif_mod$xDEM = SMdif_mod$xDEM-1
 #SMdif_mod$x = SMdif_mod$x + min(gcompfile$x)
 #SMdif_mod$y = SMdif_mod$y + min(gcompfile$y)
 
-#sort both data after same varianles
-gcomp_sort = arrange(gcompfile, x,y,zgrid)
-SMdif_sort = arrange(SMdif_mod, xDEM,yDEM,Depth)
-SMdif_comp = data.frame(Timestep = SMdif_sort$Timestep, SMobs=SMdif_sort$value, gcomp=gcomp_sort$gcomp)
-SMdif_comp$gsignal = SMdif_comp$SMobs * SMdif_comp$gcomp
-#SMdif_comp = data.frame(Timestep = SMdif_sort$Timestep, difValue=SMdif_sort$DifValue, gcomp=gcomp_sort$gcomp)
-#SMdif_comp$gsignal = SMdif_comp$difValue * SMdif_comp$gcomp / 100
+##sort both data after same varianles
+#gcomp_sort = arrange(gcompfile, x,y,zgrid)
+#rm(gcompfile); gc()
+#SMdif_sort = arrange(SMdif_mod, xDEM,yDEM,Depth)
+#rm(SMdif_mod); gc()
+#SMdif_comp = data.frame(Timestep = SMdif_sort$Timestep, SMobs=SMdif_sort$value, gcomp=gcomp_sort$gcomp)
+#SMdif_comp$gsignal = SMdif_comp$SMobs * SMdif_comp$gcomp
 
+#gsignals = left_join(SMdif_mod, gcompfile,by=c("xDEM" = "x", "yDEM" = "y", "Depth" = "zgrid" )) %>%
+#gsignals = left_join(gcompfile, SMdif_mod, by=c("x" = "xDEM", "y" = "yDEM", "zgrid" = "Depth")) %>%
+if(realdates){
+gsignals = dplyr::left_join(gcompfile, SMdif_mod) %>%
+		dplyr::mutate(gsignal = gcomp * value) %>%
+		dplyr::group_by(datetime) %>%
+		dplyr::summarize(gmod = sum(gsignal, na.rm=T))
+}else{
+gsignals = dplyr::left_join(gcompfile, SMdif_mod) %>%
+		dplyr::mutate(gsignal = gcomp * value) %>%
+		dplyr::group_by(Timestep) %>%
+		dplyr::summarize(gmod = sum(gsignal, na.rm=T))
+}
 # select output type
-switch(outputtype,
-       signal = {
-		gsignals = group_by(SMdif_comp, Timestep) %>%
-		summarize(gmod = sum(gsignal, na.rm=T))
-       },
-       grid = {
-	        gsignals = SMdif_comp
-       }
-       ) # end switch
+#switch(outputtype,
+       #signal = {
+		#gsignals = group_by(SMdif_comp, Timestep) %>%
+		#summarize(gmod = sum(gsignal, na.rm=T))
+       #},
+       #grid = {
+		#gsignals = SMdif_comp
+       #}
+       #) # end switch
 
 return(gsignals)
 }
+
+
+#' @title Calulate gravity signals 1D
+#'
+#' @description After calculating the gravity components (gcomp()), this function can be used to get real values using soil moisture data (theta). The output of the gravity signal is possible in different dimensions. 
+#'
+#' @param gcompfiles vector containing the names (complete paths or relative) of the gravity component files to be used for calculations. These files are generated using gcomp().
+#' @param theta data.frame with column structure $time, $timestep, $theta (value), $layer
+#' @param output Defines the output to be a singel value, layer or grid (default is value)
+#' ...
+#' @details Usually one needs relative gravity signals, therefore the inputed theta timeseries should be acutally delta theta vaules per timestep. The
+#' other option is calculating the differences in values per timestep of the output of this function.
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing 
+#' @export
+#' 
+gsignal_grids_1d <- function(gcompfile,SMdif_mod, outputtype="signal"){
+#sort both data after same varianles
+#gcomp_sort = arrange(gcompfile, zgrid)
+#SMdif_sort = arrange(SMdif_mod, Depth, Timestep)
+
+if(outputtype=="signal"){
+gsignals = left_join(gcompfile, SMdif_mod, by=c("zgrid" = "Depth")) %>%
+		mutate(gsignal = gcomp * value) %>%
+		group_by(Timestep) %>%
+		summarize(gmod = sum(gsignal, na.rm=T))
+}else{
+gsignals = left_join(gcompfile, SMdif_mod, by=c("zgrid" = "Depth")) %>%
+		mutate(gsignal = gcomp * value) %>%
+		group_by(Timestep, zgrid) %>%
+		summarize(gmod = sum(gsignal, na.rm=T))
+}
+	#tt= mutate(ct, gsignal = comp * val) %>%
+		#group_by(time) %>%
+		#summarize(gmod = sum(gsignal, na.rm=T))
+
+#SMdif_comp = data.frame(Timestep = SMdif_sort$Timestep, SMobs=SMdif_sort$value, gcomp=gcomp_sort$gcomp)
+#SMdif_comp$gsignal = SMdif_comp$SMobs * SMdif_comp$gcomp
+
+# select output type
+#switch(outputtype,
+       #signal = {
+		#gsignals = group_by(SMdif_comp, Timestep) %>%
+		#summarize(gmod = sum(gsignal, na.rm=T))
+       #},
+       #grid = {
+		#gsignals = SMdif_comp
+       #}
+       #) # end switch
+
+return(gsignals)
+}
+
+#' @title Calulate gravity signals 1D (data.table way)
+#'
+#' @description After calculating the gravity components (gcomp()), this function can be used to get real values using soil moisture data (theta). The output of the gravity signal is possible in different dimensions. 
+#'
+#' @param gcompfiles vector containing the names (complete paths or relative) of the gravity component files to be used for calculations. These files are generated using gcomp().
+#' @param theta data.frame with column structure $time, $timestep, $theta (value), $layer
+#' @param output Defines the output to be a singel value, layer or grid (default is value)
+#' ...
+#' @details Usually one needs relative gravity signals, therefore the inputed theta timeseries should be acutally delta theta vaules per timestep. The
+#' other option is calculating the differences in values per timestep of the output of this function.
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing 
+#' @export
+#' 
+gsignal_grids_1d_DT <- function(gcompfile,SMdif_mod, outputtype="signal"){
+#sort both data after same varianles
+#gcomp_sort = arrange(gcompfile, zgrid)
+#SMdif_sort = arrange(SMdif_mod, Depth, Timestep)
+
+# transform to data.table objects
+gcompfile = data.table(gcompfile)
+SMdif_mod = data.table(SMdif_mod)
+
+if(outputtype=="signal"){
+
+
+
+
+gsignals = left_join(gcompfile, SMdif_mod, by=c("zgrid" = "Depth")) %>%
+		mutate(gsignal = gcomp * value) %>%
+		group_by(Timestep) %>%
+		summarize(gmod = sum(gsignal, na.rm=T))
+}else{
+gsignals = left_join(gcompfile, SMdif_mod, by=c("zgrid" = "Depth")) %>%
+		mutate(gsignal = gcomp * value) %>%
+		group_by(Timestep, zgrid) %>%
+		summarize(gmod = sum(gsignal, na.rm=T))
+}
+return(gsignals)
+}
+
 
 #' @title choose method for computing gravity component for a cell of a grid
 #'
@@ -987,7 +1046,7 @@ return(gsignals)
 #' @examples missing 
 #' @export
 #' 
-select_gMethod = function(xloc, yloc, zloc, gloc, gdiscr, edge, layer, layermax, r_inner, r_outer,gama,rho,w){
+select_gMethod_Edges = function(xloc, yloc, zloc, gloc, gdiscr, edge, layer, layermax, r_inner, r_outer,gama,rho,w){
         #distances
         rad = sqrt((xloc-gloc$x)^2+(yloc-gloc$y)^2+(zloc-gloc$z)^2) #radial distance to SG
         r2=rad^2
@@ -1060,6 +1119,52 @@ select_gMethod = function(xloc, yloc, zloc, gloc, gdiscr, edge, layer, layermax,
 		 zloc_mid = zloc
 		 zdiscr = gdiscr$z
 		}
+           gcomp_cell=macmillan_raw(gama,xloc,yloc,zloc_mid,gloc$x,gloc$y,gloc$z,gdiscr$x,gdiscr$y,zdiscr,rad,w,rho) #unit depends on w
+        }
+# output one value: gravity component for corresponding input cell
+return (gcomp_cell)
+}
+
+#' @title choose method for computing gravity component for a cell of a grid
+#'
+#' @description After calculating the gravity components (gcomp()), this function can be used to get real values using soil moisture data (theta). The output of the gravity signal is possible in different dimensions. 
+#'
+#' @param gcompfiles vector containing the names (complete paths or relative) of the gravity component files to be used for calculations. These files are generated using gcomp().
+#' @param theta data.frame with column structure $time, $timestep, $theta (value), $layer
+#' @param output Defines the output to be a singel value, layer or grid (default is value)
+#' ...
+#' @details Usually one needs relative gravity signals, therefore the inputed theta timeseries should be acutally delta theta vaules per timestep. The
+#' other option is calculating the differences in values per timestep of the output of this function.
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing 
+#' @export
+#' 
+select_gMethod = function(xloc, yloc, zloc, gloc, gdiscr, r_inner, r_outer,gama,rho,w){
+        #distances
+        rad = sqrt((xloc-gloc$x)^2+(yloc-gloc$y)^2+(zloc-gloc$z)^2) #radial distance to SG
+        r2=rad^2
+        dr2=gdiscr$x^2+gdiscr$y^2+gdiscr$z^2 #radial "size" of DEM / coordinate-data system
+        f2=r2/dr2 #abstand zelle-SG / diagonale aktueller berechnungs-quader
+        # different methods after the distance from mass to SG
+        #if (f2<=r2exac){ #very close to SG
+        if (rad <= r_inner){ #very close to SG
+		xl=xloc-(0.5*gdiscr$x);xr=xloc+(0.5*gdiscr$x)
+		yl=yloc-(0.5*gdiscr$y);yr=yloc+(0.5*gdiscr$y)
+		Zint = zloc+gdiscr$z
+		Zend = zloc
+		
+           gcomp_cell=forsberg_raw(gama,w,xl,xr,yl,yr,Zint,Zend,gloc$x,gloc$y,gloc$z,rho) #unit depends on w
+        }
+         #if(f2>r2macm){ #very far from SG
+         if(rad >= r_outer){ #very far from SG
+		 zloc_mid = zloc + 0.5*gdiscr$z
+		 zdiscr = gdiscr$z
+           gcomp_cell=pointmass(gama,zloc_mid,gloc$z,gdiscr$x,gdiscr$y,zdiscr,rad,w,rho) #unit depends on w
+        }
+        #if(f2>r2exac & f2<r2macm){ #in the "middlle"
+        if(rad > r_inner & rad < r_outer){ #in the "middlle"
+		 zloc_mid = zloc + 0.5*gdiscr$z
+		 zdiscr = gdiscr$z
            gcomp_cell=macmillan_raw(gama,xloc,yloc,zloc_mid,gloc$x,gloc$y,gloc$z,gdiscr$x,gdiscr$y,zdiscr,rad,w,rho) #unit depends on w
         }
 # output one value: gravity component for corresponding input cell

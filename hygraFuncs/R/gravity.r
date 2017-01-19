@@ -428,6 +428,44 @@ gcomp_grid = cbind(grid.xyz[,1:2],z=surface[,3]-grid.xyz$Depth,zgrid=grid.xyz$De
 return(gcomp_grid)
 } #end function
 
+#' @title Interpolate grid(df) to 3D grid: ABOVE SURFACE
+#'
+#' @description interpolate DEM to necessary grid of corresponding layer
+#'
+#' @param grid_cords coordinates of the original hydrus mesh.
+#' @param data_input data to be interpolated. in fomat of the hydrus mesh.
+#' @param grid_discr vector of discretization of new grid in (x,y,z).
+#' @details missing
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing
+
+demgrid_to_gcompgrid_Edges_aboveSurface = function(demgrid_in, grid_discr, depth_split, ownSurfaceGrid=F, grid.surface){
+library(gstat)
+#dem.melt = convert_demtodf(dem, dem.info)
+#generate regular-spaced grid
+# temporarily hardgecoded hydrus 3d Area
+#grid.x <- seq(4564029.26662,4564049.35606 , by=grid_discr[1])
+#grid.y <- seq(5445650.34147,5445670.49548 , by=grid_discr[2])
+if(ownSurfaceGrid){
+	grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr$z)
+	#grid.xyz <- expand.grid(grid.surface, Depth=grid.z)
+	grid.xyz <- data.frame(x=rep(grid.surface$x,length(grid.z)),y=rep(grid.surface$y,length(grid.z)), Depth=rep(grid.z, each=length(grid.surface[,1])))
+	#grid.surface <- expand.grid(x=grid.x, y=grid.y)
+}else{
+	grid.x <- seq(min(demgrid_in$x, na.rm=T), max(demgrid_in$x, na.rm=T), by=grid_discr$x)
+	grid.y <- seq(min(demgrid_in$y, na.rm=T), max(demgrid_in$y, na.rm=T), by=grid_discr$y)
+	grid.z <- seq(min(depth_split), max(depth_split), by=grid_discr$z)
+	grid.xyz <- expand.grid(x=grid.x, y=grid.y, Depth=grid.z)
+	grid.surface <- expand.grid(x=grid.x, y=grid.y)
+}
+
+#interpolate dem data to new grid
+idw.gstat = gstat(formula = z ~ 1, locations = ~ x + y, data = demgrid_in, nmax = 4, set = list(idp = 2))
+surface = predict(idw.gstat, grid.surface)
+gcomp_grid = cbind(grid.xyz[,1:2],z=surface[,3] + grid.xyz$Depth,zgrid=grid.xyz$Depth, layer=rep(seq(1,length(grid.z), by=1),each=length(grid.surface$x)))
+return(gcomp_grid)
+} #end function
+
 #' @title Convert DEM to data.frame
 #'
 #' @description interpolate DEM to necessary grid of corresponding layer
@@ -934,6 +972,30 @@ gsignals = dplyr::left_join(gcompfile, SMdif_mod) %>%
 		#gsignals = SMdif_comp
        #}
        #) # end switch
+
+return(gsignals)
+}
+
+#' @title Calulate gravity signals 3D, output per depth-step
+#'
+#' @description After calculating the gravity components (gcomp()), this function can be used to get real values using soil moisture data (theta). The output of the gravity signal is possible in different dimensions. 
+#'
+#' @param gcompfiles vector containing the names (complete paths or relative) of the gravity component files to be used for calculations. These files are generated using gcomp().
+#' @param theta data.frame with column structure $time, $timestep, $theta (value), $layer
+#' @param output Defines the output to be a singel value, layer or grid (default is value)
+#' ...
+#' @details Usually one needs relative gravity signals, therefore the inputed theta timeseries should be acutally delta theta vaules per timestep. The
+#' other option is calculating the differences in values per timestep of the output of this function.
+#' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
+#' @examples missing 
+#' @export
+#' 
+gsignal_grids_3d_perDepth <- function(gcompfile,SMdif_mod){
+
+gsignals = dplyr::left_join(gcompfile, SMdif_mod) %>%
+		dplyr::mutate(gsignal = gcomp * value) %>%
+		dplyr::group_by(zgrid) %>%
+		dplyr::summarize(gmod = sum(gsignal, na.rm=T))
 
 return(gsignals)
 }

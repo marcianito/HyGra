@@ -232,3 +232,19 @@ PFtoSuc = function(PF){
 }
 
 
+#' @title find number of decimal places
+#'
+#' @description find number of decimal places
+#' 
+#' @param x numerical input.
+#' @details missing
+#' @references Marvin Reich (2017), mreich@@gfz-potsdam.de
+#' @examples missing
+
+decimalplaces = function(x) {
+    if ((x %% 1) != 0) {
+        nchar(strsplit(sub('0+$', '', as.character(x)), ".", fixed=TRUE)[[1]][[2]])
+    } else {
+        return(0)
+    }
+}

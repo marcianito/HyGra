@@ -1046,7 +1046,7 @@ tsx = dplyr::mutate(Irrigation_grid,
 layer_params = data.frame(zgrid = zlayers,
                          infProcess = c(rep("macro", mdepth_layer), rep("pipe",(length(zlayers) - mdepth_layer))),
                          # nlayer = c(rep(1,mdepth_layer),seq(2,length.out=(length(zlayers) - mdepth_layer))),
-                         nlayer = c(rep(1,mdepth_layer),rep(1000,(pipe_layer - mdepth_layer)), seq(1,length.out=(length(zlayers) - pipe_layer))),
+                         nlayer = c(rep(1,mdepth_layer), seq(1,length.out=(length(zlayers) - mdepth_layer))),
                          dtheta = c(rep(dtheta_macro,mdepth_layer),rep(dtheta_pipe,(length(zlayers) - mdepth_layer)))
               )
 

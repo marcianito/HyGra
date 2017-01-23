@@ -968,10 +968,14 @@ zlayers = round(unique(Irrigation_grid$zgrid),1)
 num_cell = length(unique(Irrigation_grid$x)) *  length(unique(Irrigation_grid$y))
 
 # define factors for scaling between "side" and "corner" cell neighbours
-# for corner cells
-cfactor = 0.25
+# following (Quinn 1997), where cardinal (side) and diagnol (corner) factors are summed
+# all 8 cells are delivered thus leading to the following factors
 # for side cells
-sfactor = 1 - cfactor
+# 4 * 0.5/SUM(all factors for all cells) = 4 * 0.15
+sfactor = 0.6
+# for corner cells
+# 4 * 0.35/SUM(all factors for all cells) = 4 * 0.1
+cfactor = 0.4
 
 # ##########
 # ## logging to file

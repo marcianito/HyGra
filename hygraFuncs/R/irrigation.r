@@ -859,11 +859,14 @@ return(result_grid)
 #'
 #' @description 3D distribution algorithm, modeling the soil infiltration of water from a sprinkling experiment
 #'
-#' @param test
+#' @param paramvec Numeric vector, proving input in this EXACT ORDER of the parameter values: saturation deficit of 1st process (macro pores), saturation deficit of 2nd process, total vertical thickness (extent) of 1st process (macropores), scaling factor (0 to 1) defining the relatinship between lateral and vertical flow after saturation of a cell.
 #' @param test
 #' @param test
 #' ...
-#' @details missing
+#' @details The function was written to be easily usable together with optimization tools.
+#' It thus  needs a configfile.rdata-file with the following columns, each consisting of one single value:
+#' dir_input, dir_output, precip_time, IntensityDistributionution, water_vol_min, gcompfile, gravityObs, mb_permitted_error.
+
 #' @references Marvin Reich (2016), mreich@@gfz-potsdam.de
 #' @examples missing
 
@@ -1014,11 +1017,21 @@ dtheta_pipe = param_vec[2]
 mdepth = round(param_vec[3],1)
 # somewhere define that pipedepth > mdepth !!
 # now pipedepth is directly below the macro pore layer
-pipedepth = round(mdepth + 0.1, 1)
-# pipedepth = round(param_vec[4],1)
+# pipedepth = round(mdepth + 0.1, 1)
+# pipedepth is set individually
+# this allows a space between macro pore layer and 2nd process
+pipedepth = round(param_vec[4],1)
 # lateral flow factor (seperate into lateral and vertical flow)
-latflow_fac = param_vec[4]
+latflow_fac = param_vec[5]
 vertflow_fac = 1 - latflow_fac
+
+####################
+## check validity of chosen thicknesses / depth of both infiltration processes
+if(pipedepth <= mdepth){
+  kge_fit = 1
+  return(kge_fit) 
+# if everything is okay, run normally
+}else{ 
 
 ##########################################
 ## build up model domain space
@@ -1037,6 +1050,8 @@ mdepth_layer = which(zlayers == mdepth)
 # pipedepth = 0.8  # [m]
 # determine vertical start
 pipe_layer = which(zlayers == pipedepth)
+## how many layers are between macro and pipe process?
+layer_between = pipe_layer - mdepth_layer - 1
 # ####################
 # 
 tsx = dplyr::mutate(Irrigation_grid,
@@ -1049,8 +1064,8 @@ tsx = dplyr::mutate(Irrigation_grid,
 ## tag vertical layers with infiltration process
 layer_params = data.frame(zgrid = zlayers,
                          infProcess = c(rep("macro", mdepth_layer), rep("pipe",(length(zlayers) - mdepth_layer))),
-                         # nlayer = c(rep(1,mdepth_layer),seq(2,length.out=(length(zlayers) - mdepth_layer))),
-                         nlayer = c(rep(1,mdepth_layer), seq(1,length.out=(length(zlayers) - mdepth_layer))),
+                         nlayer = c(rep(1,mdepth_layer), rep(1000, layer_between), seq(1,length.out=(length(zlayers) - (mdepth_layer + layer_between)))),
+                         # nlayer = c(rep(1,mdepth_layer), seq(1,length.out=(length(zlayers) - mdepth_layer))),
                          dtheta = c(rep(dtheta_macro,mdepth_layer),rep(dtheta_pipe,(length(zlayers) - mdepth_layer)))
               )
 
@@ -1247,7 +1262,7 @@ tsx$lat_c4[which(tsx$lat_c4 %in% cells_sat$cell_id)] = NA
 
 ## determine which vertical cell of a column gets filled in the next timestep
 ## depends on saturation state of cell
-layerfilling = dplyr::mutate(tsx, unsaturated = ifelse(sat, 1000, nlayer)) %>%
+layerfilling = dplyr::mutate(tsx, unsaturated = ifelse(sat, 10000, nlayer)) %>%
                group_by(column, infProcess) %>%
                dplyr::summarize(layerfill = min(unsaturated, na.rm=T))
 tsx = dplyr::select(tsx, - layerfill) %>%
@@ -1472,6 +1487,9 @@ n_param <<- n_param + 1
 ## returning quality criteria:
 ## KGE
 return(kge_fit) 
+
+## else statement, runs if pipedepth > mdepth
+}
 
 print("finished MACROPORES & PIPING !")
 ####################

@@ -12,17 +12,17 @@ Enjoy!
 
 #### __Installation:__ ####
 
-    * load package "devtools":
+  * load package "devtools":
 
-          library(devtools)
+            library(devtools)
 
-    * install package via
+  * install package via
 
-          install_bitbucket("marciano/HyGra")
+            install_bitbucket("marciano/HyGra")
           
-    * load package 
+  * load package 
     
-          library(hygra)
+            library(hygra)
 
 #### __Documentation:__ ####
 

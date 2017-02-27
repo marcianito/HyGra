@@ -16,7 +16,6 @@
 #' @details missing 
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
-#' 
 
 kvadose <- function(theta,vgparam,ksat){
 	thr = vgparam[1,2]

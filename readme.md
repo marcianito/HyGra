@@ -14,15 +14,15 @@ Enjoy!
 
   * load package "devtools":
 
-            library(devtools)
+        library(devtools)
 
   * install package via
 
-            install_bitbucket("marciano/HyGra")
+        install_bitbucket("marciano/HyGra")
           
   * load package 
     
-            library(hygra)
+        library(hygra)
 
 #### __Documentation:__ ####
 
@@ -32,13 +32,13 @@ Documentation can be accessed via the Vignete or using
 
 #### __Main functionality:__ ####
 
-    * read, organized and filter various field measurement data
-    * gravity grid preparation
-    * gravity signal calculations (1D, 2D & 3D)
-    * HYDRUS pre- and postprocessing
-    * some hydrological parameter estimation functions
-    * cross-correlations of different hydrological time series
-    * hydro-gravimetric infiltration model (simulating a sprinkling experiment)
+  * read, organized and filter various field measurement data
+  * gravity grid preparation
+  * gravity signal calculations (1D, 2D & 3D)
+  * HYDRUS pre- and postprocessing
+  * some hydrological parameter estimation functions
+  * cross-correlations of different hydrological time series
+  * hydro-gravimetric infiltration model (simulating a sprinkling experiment)
 
 ### Contact ###
 

@@ -12,13 +12,19 @@ Enjoy!
 
 #### __Installation:__ ####
 
-    * load package "devtools": '''library(devtools)'''
+    * load package "devtools":
+    '''R
+    library(devtools)
+    '''
     * install package via '''install_bitbucket("marciano/HyGra")'''
     * load package '''library(hygra)'''
 
 #### __Documentation:__ ####
 
-Documentation can be accessed via the Vignete or using <code>?hygra<code>
+Documentation can be accessed via the Vignete or using 
+    '''R
+    ?hygra<code>
+    '''
 
 #### __Main functionality:__ ####
 

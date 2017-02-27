@@ -1,4 +1,4 @@
-### __**hygra** is an R-package for hydro-gravitational modeling__ ###
+### __**HyGra** is an R-package for hydro-gravitational modeling__ ###
 
 This package was created during my PhD in hydrogravimetry.
 It contains a catalog of functions which I collected and developed during the work on the anaylsis for my publications.
@@ -13,12 +13,12 @@ Enjoy!
 #### __Installation:__ ####
 
     * load package "devtools": '''library(devtools)'''
-    * install package via '''install_bitbucket("marciano/hygra")'''
+    * install package via '''install_bitbucket("marciano/HyGra")'''
     * load package '''library(hygra)'''
 
 #### __Documentation:__ ####
 
-Documentation can be accessed via the Vignete or using ''?hygra''
+Documentation can be accessed via the Vignete or using <code>?hygra<code>
 
 #### __Main functionality:__ ####
 

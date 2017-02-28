@@ -1232,3 +1232,45 @@ select_gMethod = function(xloc, yloc, zloc, gloc, gdiscr, r_inner, r_outer,gama,
 # output one value: gravity component for corresponding input cell
 return (gcomp_cell)
 }
+
+#' @title Calculate gravity signal of a test mass at a fixed distance to gravity sensor
+#'
+#' @description 
+#'
+#' @param 
+#' ...
+#' @details 
+#' @references Marvin Reich (2017), mreich@@gfz-potsdam.de
+#' @examples missing 
+#' @export
+ 
+gcomp_testmass = function(mass_loc, mass_geom, gloc, r_inner, r_outer,gama,rho,w){
+        # distances
+        rad = sqrt((mass_loc$x-gloc$x)^2+(mass_loc$y-gloc$y)^2+(mass_loc$z-gloc$z)^2) #radial distance to SG
+        r2 = rad^2
+        dr2 = mass_geom$dx^2+mass_geom$dy^2+mass_geom$dz^2 #radial "size" of testmass
+        f2 = r2/dr2 #abstand zelle-SG / diagonale aktueller berechnungs-quader
+        ## different methods after the distance from mass to SG
+        # if (f2<=r2exac){ #very close to SG
+        if (rad <= r_inner){ #very close to SG
+		    xl = mass_loc$x-(0.5*mass_geom$dx);xr = mass_loc$x+(0.5*mass_geom$dx)
+		    yl = mass_loc$y-(0.5*mass_geom$dy);yr = mass_loc$y+(0.5*mass_geom$dy)
+		    Zup = mass_loc$z + (0.5*mass_geom$dz)
+		    Zlow = mass_loc$z - (0.5*mass_geom$dz)
+            gcomp_mass = forsberg_raw(gama,w,xl,xr,yl,yr,Zup,Zlow,gloc$x,gloc$y,gloc$z,rho) #unit depends on w
+        }
+        # if(f2>r2macm){ #very far from SG
+        if(rad >= r_outer){ #very far from SG
+		    zloc_mid = mass_loc$z + 0.5*mass_geom$dz
+		    zdiscr = mass_geom$dz
+            gcomp_mass = pointmass(gama,zloc_mid,gloc$z,mass_geom$dx,mass_geom$dy,zdiscr,rad,w,rho) #unit depends on w
+        }
+        # if(f2>r2exac & f2<r2macm){ #in the "middlle"
+        if(rad > r_inner & rad < r_outer){ #in the "middlle"
+		    zloc_mid = mass_loc$z + 0.5*mass_geom$dz
+		    zdiscr = mass_geom$dz
+            gcomp_mass = macmillan_raw(gama,mass_loc$x,mass_loc$y,zloc_mid,gloc$x,gloc$y,gloc$z,mass_geom$dx,mass_geom$dy,zdiscr,rad,w,rho) #unit depends on w
+        }
+# output one value: gravity component for corresponding input mass body
+return (gcomp_mass)
+}

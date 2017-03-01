@@ -1552,17 +1552,20 @@ print("start calculatings for infiltration: COMBINED Extended scenarios..")
 # water_vol_min = water_total_experiment / precip_time #[m³/min]
 # zlayers = round(seq(0,3, by=.1),1)
 # # params
-# dtheta_macro = 0.2
+# dtheta_macro = 0.1
+# dtheta_macro2 = 0.000000005
 # dtheta_pipe = 0.01
-# mdepth = 0.5
+# mdepth = 0.3
+# mdepth2 = 1 
 # pipedepth = 0.6
 # latflow_fac = 0.5
 # mb_permitted_error = 0.05
 # vertflow_fac = 1 - latflow_fac
 # vol_cell = 0.1 * 0.1 * 0.1 # [m³]
 # Irrigation_grid = dplyr::select(gcomp_irrigation_domain, x,y,z,zgrid)
+# zlayers = round(unique(Irrigation_grid$zgrid),1)
 # num_cell = length(unique(Irrigation_grid$x)) *  length(unique(Irrigation_grid$y))
-# cfactor = 0.25
+# cfactor = 0.4
 # sfactor = 1 - cfactor
 # dir_output = "/home/mreich/temp/"
 # ####################
@@ -1713,7 +1716,7 @@ tsx = dplyr::mutate(Irrigation_grid,
 
 ## tag vertical layers with infiltration process
 layer_params = data.frame(zgrid = zlayers,
-                         infProcess = c(rep("macro", mdepth2_layer), rep("pipe",(length(zlayers) - mdepth2_layer))),
+                         infProcess = c(rep("macro", mdepth_layer),rep("macro2", macro_layer_between), rep("pipe",(length(zlayers) - mdepth2_layer))),
                          nlayer = c(rep(1,mdepth_layer), rep(1, macro_layer_between), seq(1,length.out=(length(zlayers) - mdepth2_layer))),
                          # nlayer = c(rep(1,mdepth_layer), seq(1,length.out=(length(zlayers) - mdepth_layer))),
                          dtheta = c(rep(dtheta_macro,mdepth_layer),rep(dtheta_macro2,macro_layer_between),rep(dtheta_pipe,(length(zlayers) - mdepth2_layer)))
@@ -1739,7 +1742,7 @@ tsx = inner_join(tsx, Intensity_distribution) %>%
       mutate(aboveSat = F) %>%
       mutate(value_lat = NA) %>%
       mutate(lat_water = distrWater * latflow_fac) %>%
-      mutate(cell_id = paste0(nlayer,"_",column))
+      mutate(cell_id = paste0(nlayer,"_",column,"_",infProcess))
 
 ## construct database with cell neighbours
 celllayer = dplyr::filter(tsx, zgrid == 0) %>%
@@ -1792,7 +1795,8 @@ tsx$Timestep = i
 ## vertical infiltration
 ## filling is done seperately for macro pore cells and other ("pipe") cells
 tsx = dplyr::mutate(tsx, value_macro = ifelse(infProcess == "macro" & nlayer == layerfill, prevalue + (distrWater / cellsLayerColumn), prevalue)) %>%
-      dplyr::mutate(value_macro = ifelse(infProcess == "macro", value_macro, 0)) %>%
+      dplyr::mutate(value_macro = ifelse(infProcess == "macro2" & nlayer == layerfill, prevalue + (distrWater / cellsLayerColumn), prevalue)) %>%
+      dplyr::mutate(value_macro = ifelse(infProcess == "macro" | infProcess == "macro2", value_macro, 0)) %>%
       ## normal filing
       dplyr::mutate(value_pipe = ifelse(infProcess == "pipe" & nlayer == layerfill, prevalue + (distrWater / cellsLayerColumn) * vertflow_fac, prevalue)) %>%
       ## adjust water amount for "vertically first filled cell", where all column water goes in !!
@@ -1800,7 +1804,6 @@ tsx = dplyr::mutate(tsx, value_macro = ifelse(infProcess == "macro" & nlayer == 
       dplyr::mutate(value_pipe = ifelse(infProcess == "pipe", value_pipe, 0)) %>%
       dplyr::mutate(value = value_macro + value_pipe)
 ####################
-
 
 ####################
 ## lateral water flow
@@ -1899,7 +1902,7 @@ tsx$sat[which(tsx$cell_id %in% cells_sat$cell_id)] = T
 # give cell the information if the direct above cell is already saturated
 # except for the macro pores
 tsx$belowSatnLayer = paste(tsx$cell_id,"_", (tsx$nlayer))
-tsx$aboveSat[which(tsx$belowSatnLayer %in% cells_sat$belowSatnLayer & tsx$infProcess != "macro")] = T
+tsx$aboveSat[which(tsx$belowSatnLayer %in% cells_sat$belowSatnLayer & tsx$infProcess != "macro" & tsx$infProcess != "macro2")] = T
 # set information NA, if neighbour cell is already saturated
 tsx$lat_s1[which(tsx$lat_s1 %in% cells_sat$cell_id)] = NA
 tsx$lat_s2[which(tsx$lat_s2 %in% cells_sat$cell_id)] = NA
@@ -1921,7 +1924,8 @@ tsx = dplyr::select(tsx, - layerfill) %>%
 ## determine the number of cells in each column, which are to be filled in the next timestep
 ## this value is used to divide the avaivable water per timestep
 ## and thus directly influences errors in mass balance
-cellnums_dynamic = dplyr::mutate(layerfilling, ncells = ifelse(infProcess == "macro" & layerfill < 2, mdepth2 * 10 +1, 0)) %>%
+cellnums_dynamic = dplyr::mutate(layerfilling, ncells = ifelse(infProcess == "macro" & layerfill < 2, mdepth * 10 +1, 0)) %>%
+                   dplyr::mutate(ncells = ifelse(infProcess == "macro2" & layerfill < 2, (mdepth2 - mdepth) * 10, ncells)) %>%
                    dplyr::mutate(ncells = ifelse(infProcess == "pipe", 1, ncells)) %>%
                    dplyr::group_by(column) %>%
                    dplyr::summarize(cellsLayerColumn = sum(ncells, na.rm=T))

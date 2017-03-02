@@ -19,6 +19,7 @@ Enjoy!
   * install package via
 
         install_bitbucket("marcianito/HyGra")
+        install_github("marcianito/hygra")
           
   * load package 
     

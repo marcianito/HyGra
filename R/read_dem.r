@@ -11,9 +11,9 @@
 #' @examples missing
 #' 
 read_dem <- function(dempath,filename){
-info.DEM <- read.table(file=paste(dempath,"/",filename,sep=""),nrows=6, row.names=1, header=F, sep="", stringsAsFactors=F, colClasses=c("character","numeric"))
+info.DEM <- read.table(file=paste(dempath,filename,sep=""),nrows=6, row.names=1, header=F, sep="", stringsAsFactors=F, colClasses=c("character","numeric"))
 nodata <- info.DEM[6,1]
-data.DEM <- read.table(file=paste(dempath,"/",filename,sep=""), sep="", dec=".", skip=6, stringsAsFactors=F, na.strings=nodata, header=F)
+data.DEM <- read.table(file=paste(dempath,filename,sep=""), sep="", dec=".", skip=6, stringsAsFactors=F, na.strings=nodata, header=F)
 dem.info <<- info.DEM; dem<<- data.DEM
 sucess = "output: dem.info and dem"
 return(sucess)

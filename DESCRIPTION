@@ -2,7 +2,7 @@ Package: hygra
 Type: Package
 Title: Hydrogravimetry
 Version: 0.9
-Date: 2014-07-1
+Date: 2017-03-01
 Author: Marvin Reich <mreich@gfz-potsdam.de>
 Maintainer: Marvin Reich <mreich@gfz-potsdam.de>
 Imports:
@@ -11,3 +11,4 @@ Imports:
 Description: Prepare, process and test data concerning the combination of
     gravitational computations and hydrology
 License: GPL version 2 or newer
+RoxygenNote: 5.0.1

@@ -1795,7 +1795,7 @@ tsx$Timestep = i
 ## vertical infiltration
 ## filling is done seperately for macro pore cells and other ("pipe") cells
 tsx = dplyr::mutate(tsx, value_macro = ifelse(infProcess == "macro" & nlayer == layerfill, prevalue + (distrWater / cellsLayerColumn), prevalue)) %>%
-      dplyr::mutate(value_macro = ifelse(infProcess == "macro2" & nlayer == layerfill, prevalue + (distrWater / cellsLayerColumn), prevalue)) %>%
+      dplyr::mutate(value_macro = ifelse(infProcess == "macro2" & nlayer == layerfill, prevalue + (distrWater / cellsLayerColumn), value_macro)) %>%
       dplyr::mutate(value_macro = ifelse(infProcess == "macro" | infProcess == "macro2", value_macro, 0)) %>%
       ## normal filing
       dplyr::mutate(value_pipe = ifelse(infProcess == "pipe" & nlayer == layerfill, prevalue + (distrWater / cellsLayerColumn) * vertflow_fac, prevalue)) %>%

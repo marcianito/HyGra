@@ -267,25 +267,21 @@ hydrus_sm <- function(date.in, date.out, name, datacol, freq="hour",aszoo=F){
 #'
 #' @description test
 #'
-#' @param folder foldername of project to read
+#' @param folder path to hydrus project folder
 #' @param vertical_nodes mumber of nodes used in the vertical model discretisation
 #' @param timesteps number of modeled timesteps
 #' @param t_printout number of model printout times
 #' @param plotting indicate if standard parameters should be plotted (TRUE); default is FALSE
-#' @param datetime vector of timestamps of the modeled timeseries. if not provided output time will be in counts of timesteps
+#' @param timestamps vector of timestamps of the modeled timeseries. if not provided output time will be in counts of timesteps
 #' 
 #' @details missing
+#' @import dplyr, ggplot2, reshape2, grid, gridExtra, scales
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
 
 read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plotting=F, timestamps, tprint_show=10){
-	# library(dplyr)
-	# library(dplyrExtras)
-
- #path_hydrus = "/home/mreich/.wine/drive_c/users/Public/Documents/PC-Progress/Hydrus-1D 4.xx/Examples/Direct/" 
- #path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus1_out/iGravPaper/" 
- path_hydrus = "/home/mreich/Dokumente/written/iGrav_GRL_2016/Scripts/DataProcessing/HydrusModel/" 
- setwd(paste(path_hydrus, folder, "/", sep="")) 
+  # set working directory to hydrus project folder
+ setwd(folder) 
  ##read output files tlevel
  num_lines = length(readLines("T_Level.out"))
  tlevel = read.table(file="T_Level.out", header=F, skip=9, sep="",nrows=(num_lines-10), dec=".")
@@ -293,14 +289,6 @@ read_hydrus1d <- function(folder, timesteps, vertical_nodes, t_printout, plottin
  #remove duplicated data lines (interpolation artefacts probably)
  tlevel$Timecut=round(tlevel$Time,0)
  tlevel = tlevel[!duplicated(tlevel$Timecut),]
-
- #nodal_infoTIME = read.table(file="Nod_Inf.out", header=F, skip=7, sep="", nrows=1, dec=".")
- #nodal_infoIN = read.table(file="Nod_Inf.out", header=F, skip=13, sep="", nrows=vertical_nodes, dec=".")
- #nodal_info = cbind(rep(nodal_infoTIME[,2],times=vertical_nodes), nodal_infoIN)
- #balanceTIME = read.table(file="Balance.out", header=F, skip=20, sep="", nrows=1, dec=".")
- #balanceVOL = read.table(file="Balance.out", header=F, skip=30, sep="", nrows=1, dec=".")
- #balancePER = read.table(file="Balance.out", header=F, skip=31, sep="", nrows=1, dec=".")
- #balance = cbind(balanceTIME[,3], balanceVOL[,3], balancePER[,3])
 
 system("sed -n '/^[[:space:]]*[T]/p' Nod_Inf.out > bash_time.out")
 system("sed -n '/^[[:space:]]*[0-9]/p' Nod_Inf.out > bash_data.out")
@@ -311,7 +299,6 @@ time_print = printout[,2]
 data_all = read.table(file="bash_data.out", dec=".")
 profile_data = read.table(file="bash_profile.out", dec=".")
 grid_cords = profile_data[,2]
-#nodes_max = 1001
 
 th_h_profiles = data.frame(Time=rep(time_print, each=vertical_nodes),
 		      #x=rep(grid_cords$x, each=length(time_print)),
@@ -326,10 +313,6 @@ th_h_profiles = data.frame(Time=rep(time_print, each=vertical_nodes),
  print("Output stored in th_h_profiles")
 
  #for(i in 2:(t_printout+1)){
- #nodal_infoTIME = read.table(file="Nod_Inf.out", header=F, skip=((i-1)*(vertical_nodes+9) + 7), sep="", nrows=1, dec=".")
- #nodal_infoIN = read.table(file="Nod_Inf.out", header=F, skip=((i-1)*(vertical_nodes+9) + 13), sep="", nrows=vertical_nodes, dec=".")
- #nodal_infoDATA = cbind(rep(nodal_infoTIME[,2],times=vertical_nodes), nodal_infoIN)
- #nodal_info = rbind(nodal_info, nodal_infoDATA)
  #if(i == (t_printout+1)) break
  #balanceTIME = read.table(file="Balance.out", header=F, skip=((i-1)*15+20), sep="", nrows=1, dec=".")
  #balanceVOL = read.table(file="Balance.out", header=F, skip=((i-1)*15+30), sep="", nrows=1, dec=".")
@@ -337,6 +320,7 @@ th_h_profiles = data.frame(Time=rep(time_print, each=vertical_nodes),
  #balanceDATA = cbind(balanceTIME[,3], balanceVOL[,3], balancePER[,3])
  #balance = rbind(balance, balanceDATA)
  #}
+ 
  #colnames(nodal_info) = c("Time","Node","Depth","Head","Moisture","K","C","Flux","Sink","Kappa","v/KsTop","Temp")
  #colnames(balance) = c("Time","WaterBalanceVolume","WaterBalancePercent")
  tlevel = mutate(tlevel, datetime=timestamps)
@@ -347,12 +331,6 @@ th_h_profiles = data.frame(Time=rep(time_print, each=vertical_nodes),
 
  #plotting
  if(plotting){
-# library(ggplot2)
- #library(reshape2)
-# library(dplyrExtras)
-# library(grid)
-# library(gridExtra)
-# library(scales)
  tlevel.plot = melt(tlevel, id.vars=c("datetime","Time"), measure.vars=colnames(tlevel)[2:22], variable.name = "Parameters")
  #nodal.plot = melt(nodal_info, id.vars=c("Time", "Depth"), measure.vars=colnames(nodal_info)[-1:-3], variable.name = "Parameters")
  nodal.plot = melt(th_h_profiles, id.vars=c("Time", "Depth"), measure.vars=c("Moisture","Head","K","Flux"), variable.name = "Parameters")
@@ -1110,58 +1088,58 @@ read_obsNode3d <- function(folder,realTime=T,startdate,plotting=F){
 #'
 #' @description test
 #'
-#' @param folder foldername of project to read
+#' @param folder path to hydrus project folder
 #' @param realTime logical. Output in UTC (TRUE; default) or model time steps (FALSE).
 #' @param startdate starting date for output in UTC. Format is POSIXct.
 #' @param plotting do you want node time series plotted (default is FALSE).
 #' @details missing
+#' @import stringr
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing
 
 # read_hydrus2d_irregular <- function(folder, timesteps, vertical_nodes, horizontal_nodes, t_printout, plotting=F, timestamps, px){
 read_obsNode1d <- function(folder,startdate,plotting=F){
- library(stringr)
- #path_hydrus = "/home/mreich/server/hydro72/hydrus2d/experiments/" 
- #path_hydrus = "/home/mreich/server/sec54c139/Documents/hydrus2d/experiments/" 
- #path_hydrus = "/home/mreich/Dokumente/Wettzell/hydrologicalmodelling/hydrus1_out/iGravPaper/"
- path_hydrus = "/home/mreich/Dokumente/written/iGrav_GRL_2016/Scripts/DataProcessing/HydrusModel/"
- setwd(paste(path_hydrus, folder, "/", sep="")) 
- #read mesh
- #nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
- #nodes_max = nodes_meta[1,2]
- #nodes_cords = read.table("MESHTRIA.TXT", header=F, skip=1 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
+  # set working directory to hydrus project folder
+  setwd(folder) 
+  #read mesh
+  #nodes_meta = read.table("MESHTRIA.TXT", header=F, sep="", nrows=1, dec=".") #read grid meta data
+  #nodes_max = nodes_meta[1,2]
+  #nodes_cords = read.table("MESHTRIA.TXT", header=F, skip=1 ,sep="", nrows=nodes_max, dec=".") #read z coordinates of grid
 
- #read obsveration node output file
- num_lines = length(readLines("Obs_Node.out"))
- obsNodeData = read.table(file="Obs_Node.out", header=T, skip=10, sep="",nrows=(num_lines-12), dec=".")
- nodeNames.in = read.table(file="Obs_Node.out", header=F, skip=8, sep=")",nrows=1)
- nodeNames = vector()
- #for(i in 1:(length(nodeNames.in)/2)){
- #nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i*2], "[0-9]+"))
- #}
- for(i in 1:(length(nodeNames.in))){
- nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i], "[0-9]+"))
- }
- nodeNames = nodeNames[-length(nodeNames)]
- #select columns
- theta_data = select(obsNodeData, contains("theta"))
- #generate zoo-TS
- obsNodeTheta = zoo(theta_data, order.by=as.POSIXct(obsNodeData$time*3600, format="%H", origin=startdate))
- ## ??
- colnames(obsNodeTheta) = nodeNames
- ## !!
- #offer possibility to get output as pivot-table with node coordinates!
- obsNode.melt = melt(zootodf(obsNodeTheta), id="time", variable.name="node", value.name="theta")
- #extract node cordinates from cords
- ## dont know if this line works, but its something like this..!
- #obsNode_cords = match(nodeNames, nodes_cords)
- #obsNode.melt = inner_join(obsNode_cords, by=)
- #...
- if(plotting){
-	ggplot(obsNode.melt, aes(x=time, y=theta, colour=node)) + geom_line() + facet_grid(node~.)
- }
- return(obsNodeTheta)
+  #read obsveration node output file
+  num_lines = length(readLines("Obs_Node.out"))
+  obsNodeData = read.table(file="Obs_Node.out", header=T, skip=10, sep="",nrows=(num_lines-12), dec=".")
+  nodeNames.in = read.table(file="Obs_Node.out", header=F, skip=8, sep=")",nrows=1)
+  nodeNames = vector()
+  #for(i in 1:(length(nodeNames.in)/2)){
+  #nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i*2], "[0-9]+"))
+  #}
+  for(i in 1:(length(nodeNames.in))){
+    nodeNames[i] = as.numeric(str_extract(nodeNames.in[,i], "[0-9]+"))
+  }
+  nodeNames = nodeNames[-length(nodeNames)]
+  #select columns
+  theta_data = select(obsNodeData, contains("theta"))
+  #generate zoo-TS
+  obsNodeTheta = zoo(theta_data, order.by=as.POSIXct(obsNodeData$time*3600, format="%H", origin=startdate))
+  ## ??
+  colnames(obsNodeTheta) = nodeNames
+  ## !!
+  #offer possibility to get output as pivot-table with node coordinates!
+  obsNode.melt = melt(zootodf(obsNodeTheta), id="time", variable.name="node", value.name="theta")
+  #extract node cordinates from cords
+  ## dont know if this line works, but its something like this..!
+  #obsNode_cords = match(nodeNames, nodes_cords)
+  #obsNode.melt = inner_join(obsNode_cords, by=)
+  #...
+  if(plotting){
+     print(
+         ggplot(obsNode.melt, aes(x=time, y=theta, colour=node)) + geom_line() + facet_grid(node~.)
+         )
+  }
+  return(obsNodeTheta)
 } # end function read obsNode data
+
 #' @title Plot modeled nodes and observed soil moisture sensors
 #'
 #' @description plot time series of modeled observation nodes and measured soil moisture. This works with both hydrus 2D and 3D models.

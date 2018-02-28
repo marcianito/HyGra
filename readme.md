@@ -1,11 +1,10 @@
 # HyGra: hydro-gravitational modeling with R
-setups, calculations, pre- and postprocessing
 
 ## Description
 
 This R-package is a collection of function which serve as a basis for hydro-gravitational projects.
 It evolved and grew throughout my PhD and hopefully helps others when dealing with this kind of data and projects.
-It provides a structure for the following aspects, concerning hydro-gravitational projects and calculations:
+It provides a structure for the aspects of setups, calculations, pre- and post-processing, concerning hydro-gravitational projects:
 
 * model domain preparation using DEMs (absolute UTM coordinates or relative coordinates)
 * generating gravity component grids (circle, rectangular)

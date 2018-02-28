@@ -1,5 +1,5 @@
-## HyGra: hydro-gravitational modeling (calculations, setups, pre- and postprocessing) with R
-======================================================================
+# HyGra: hydro-gravitational modeling with R
+setups, calculations, pre- and postprocessing
 
 ## Description
 

@@ -679,14 +679,23 @@ cclag_nosnr = function(data1,data2,data1.raw,data2.raw,nmax,normdata=T,mv_win=96
   data_plots = list() # prepare list for possible single time series interval plots
   for(i in 1:(length(ts.years)-1)){
 	#use NON-decomposed TS; stl = decomposition was excluded in this newer version!
-	SNRratio_data1 = snr_ratio_2TS(data1.year.raw[[i]],data1.year[[i]],T,F) #rmNA=T, plotting=F 
-	SNRratio_data2 = snr_ratio_2TS(data2.year.raw[[i]],data2.year[[i]],T,F) #rmNA=T, plotting=F
+
+    SNRratio_data1 = snr_ratio_2TS(data1.year.raw[[i]],data1.year[[i]],T,F) #rmNA=T, plotting=F 
+    SNRratio_data2 = snr_ratio_2TS(data2.year.raw[[i]],data2.year[[i]],T,F) #rmNA=T, plotting=F
+
 	#data1_signal_sd = sd(data1.year[[i]], na.rm=T)
 	#data1_noise_sd = sd(data1.year.raw[[i]], na.rm=T)
 	#SNRratio_data1 = data1_noise_sd/data1_signal_sd
 	#data2_signal_sd = sd(data2.year[[i]], na.rm=T)
 	#data2_noise_sd = sd(data2.year.raw[[i]], na.rm=T)
 	#SNRratio_data2 = data2_noise_sd/data2_signal_sd
+
+    # data1_signal_mean = mean(data1.year[[i]], na.rm=T)
+    # data1_noise_sd = sd(data1.year.raw[[i]], na.rm=T)
+    # SNRratio_data1 = data1_signal_mean/data1_noise_sd
+    # data2_signal_mean = mean(data2.year[[i]], na.rm=T)
+    # data2_noise_sd = sd(data2.year.raw[[i]], na.rm=T)
+    # SNRratio_data2 = data2_signal_mean/data2_noise_sd
 
 	#normalize data
   	if(normdata==T){ #use normalize data as input

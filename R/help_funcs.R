@@ -149,6 +149,88 @@ read_dem = function(dempath, filename){
     return(sucess)
 }
 
+#' @title Plot a DEM 
+#'
+#' @description Plots a Digital Elevation Model / Matrix using ggplot2-style. 
+#'
+#' @param dem x * y-grid containing z-coordinates 
+#' @param dem.info data.frame containing information about the DEM (row wise): columns, rows, starting x, starting y, lengths of one cellsize
+#' @param locs data.frame with column strucure $x (coordinate), $y (coordinate), $name (name to be printed in plot)
+#' ...
+#' @details missing 
+#' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
+#' @examples missing 
+#' 
+plot_dem <- function(dem,dem.info,locs = NA){
+## DEBUGGING
+# locs = SGlocs  
+##
+dem.col = topo.colors(10)
+if(!is.na(locs)){
+locs$value=c(rep(1,times=length(locs[,1])))
+#dem parameters
+R = dem.info[2,1]
+C = dem.info[1,1]
+x0 = dem.info[3,1]
+y0 = dem.info[4,1]
+dxdy = dem.info[5,1]
+#calculate dem-parameters
+discre(C,R,x0,y0,dxdy)
+#change dem cols & rows
+colnames(dem) = xp
+rownames(dem) = yp
+dem.plot = ggplot(melt(as.matrix(dem)), aes(x=Var2,y=Var1, fill=value)) +
+    geom_raster() + xlab("x") + ylab("y") + scale_fill_gradientn(limits=range(dem),colours=dem.col, name="height mNN", na.value = "grey50")  +
+    labs(title="DGM") + 
+    geom_point(data=locs, aes(x,y), colour="black", size=3) + 
+    geom_text(data=locs, aes(x,y,label=name),hjust=0.5, vjust=-0.5)
+}else{
+#dem parameters
+R = dem.info[2,1]
+C = dem.info[1,1]
+x0 = dem.info[3,1]
+y0 = dem.info[4,1]
+dxdy = dem.info[5,1]
+#calculate dem-parameters
+discre(C,R,x0,y0,dxdy)
+#change dem cols & rows
+colnames(dem) = xp
+rownames(dem) = yp
+dem.plot = ggplot(melt(as.matrix(dem)), aes(x=Var2,y=Var1, fill=value)) +
+    geom_raster() + xlab("x") + ylab("y") + scale_fill_gradientn(limits=range(dem),colours=dem.col, name="height mNN", na.value = "grey50")  +
+    labs(title="DGM")
+}
+# return data  
+return(dem.plot)
+}
+
+### discretization ###
+discre <- function(C,R,x0,y0,dxdy){
+  
+  xl=matrix(0, nrow=1, ncol=C) #=zeros(1,C);
+  xl[1]=x0;
+  for (c1 in 1:(C-1)){
+    xl[c1+1]=xl[c1]+dxdy
+  }
+  xr=xl+dxdy
+  xp=(xl+xr)/2
+  
+  yl=matrix(0, nrow=1, ncol=R) #=zeros(1,R);
+  yl[R]=y0
+  for (c2 in seq(R,2, by=-1)){ #R:-1:2
+    yl[c2-1]=yl[c2]+dxdy
+  }
+  yr=yl+dxdy
+  yp=(yl+yr)/2
+  
+  #making variables globally accessable
+  xl <<- xl; xr <<- xr; xp <<- xp
+  yl <<- yl; yr <<- yr; yp <<- yp
+  #res <- list()
+  #print("xl, xr, xp"); print("yl, yr, yp")
+  #return(print("discretization parameters calculated"))
+}
+
 #' @title RMSE of simulated and observed vectors
 #'
 #' @description test
@@ -227,16 +309,20 @@ aggTS = function(
     ## DEBUGGING
     # timeseries_data = as.data.frame(ET_hourly)
     # timeseries_data = as.data.frame(data_radar_mod)
-    # newPeriod = "daily"
+    # timeseries_data = tt_data_radar
+    # newPeriod = "hourly"
     # fun = "sum"
     # time_offset = 0
     # conserve_columns = "cell_index"
+    # conserve_columns = c("x", "y")
     ##
     ## force input to be a data.frame
     timeseries_data = as.data.frame(timeseries_data)
     # construct list of columns to conserve during summarizing
     if(!is.na(conserve_columns)){
     columns = as.list(c("datetime", conserve_columns))
+    }else{
+    columns = as.list(c("datetime"))
     }
     # format after new period
     # and include offset
@@ -244,12 +330,12 @@ aggTS = function(
            daily = {
         ts_newPeriod = timeseries_data %>%
         dplyr::mutate(datetime = as.POSIXct(trunc(datetime, "days"))) %>%
-        dplyr::mutate(datetime = datetime - 3600 * 24 * time_offset)
+        dplyr::mutate(datetime = datetime + 3600 * 24 * time_offset)
            },
            hourly = {
         ts_newPeriod = timeseries_data %>%
         dplyr::mutate(datetime = as.POSIXct(trunc(datetime, "hours"))) %>%
-        dplyr::mutate(datetime = datetime - 3600 * time_offset)
+        dplyr::mutate(datetime = datetime + 3600 * time_offset)
            },
            weekly = {
                ## still not sure how to do this !! ?
@@ -260,7 +346,7 @@ aggTS = function(
         ts_newPeriod = timeseries_data %>%
         dplyr::mutate(datetime_weeks = paste0(format(datetime, "%Y-%W"), "-0")) %>%
         dplyr::mutate(datetime = as.POSIXct(strptime(datetime_weeks, "%Y-%W-%w")) + week) %>%
-        dplyr::mutate(datetime = datetime - 3600 * 24 * 7 * time_offset) %>%
+        dplyr::mutate(datetime = datetime + 3600 * 24 * 7 * time_offset) %>%
         dplyr::select(-datetime_weeks)
            }
            )

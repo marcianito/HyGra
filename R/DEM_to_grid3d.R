@@ -22,7 +22,7 @@ DEM_to_grid3d = function(
             grid_domain_y,
             grid_discr,
             depth_split,
-            loc_z = NA,
+            loc_z = 0,
             input_dir,
             output_dir,
             ...

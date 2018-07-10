@@ -25,15 +25,15 @@ create_gravityGrid = function(
 ){
     ## DEBUGGING
     # DEM_input_file = DEM_file
-    # # DEM_input_file = DEM_in
-    # dir_input_DEM = dir_DEM
-    # # # SG_coordinates = SGloc
-    # SG_coordinates = SG_locs
-    # grid_discretization = grid3d_discrezitation
-    # # grid_discretization = grid3d_discretization[1,]
-    # grid_depth = grid3d_vertDepth
-    # # # radius_inner = rad_inner
-    # # # radius_outer = rad_outer
+    # DEM_input_file = DEM_in
+    # dir_input_DEM = DEM_dir
+    # SG_coordinates = SGloc
+    # # SG_coordinates = SG_locs
+    # grid_discretization = grid_discr
+    # # # grid_discretization = grid3d_discretization[1,]
+    # grid_depth = grid3d_vertical
+    # radius_inner = rad_inner
+    # radius_outer = rad_outer
     # # radius_inner = 0
     # # radius_outer = 100
     # range_coords_x = grid_domain_x
@@ -48,6 +48,14 @@ create_gravityGrid = function(
             # range_coords_y = Building_y
             # radius_inner = NA
             # radius_outer = NA
+    ## NEW
+    # DEM_input_file = DEM_input_file
+    # dir_input_DEM = DEM_dir
+    # SG_coordinates = SGloc
+    # grid_discretization = grid_discretizations
+    # grid_depth = grid_vertical
+    # range_coords_x = range_coords_x
+    # range_coords_y = range_coords_y
     ##
     if(is.na(radius_inner)){
         # rectangle
@@ -98,7 +106,7 @@ create_gravityGrid = function(
                 grid_domain_y = grid_y,
                 grid_discr = grid_discretization,
                 depth_split = grid_depth,
-                loc_z = SG_coordinates$z,
+                # loc_z = SG_coordinates$z,
                 input_dir = dir_input_DEM,
                 output_dir = dir_input_DEM
     )

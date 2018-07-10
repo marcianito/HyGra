@@ -75,7 +75,7 @@ correct_SGpillar = function(
     
       # correct rectangular SG pillar
       gcomp_grid3d = gravity_comp3d %>%
-          dplyr::mutate(SGpillar = pip3d(vert_SGpillar, faces, as.matrix(gravity_gcomp3d[,1:3]))) %>%
+          dplyr::mutate(SGpillar = pip3d(vert_SGpillar, faces, as.matrix(gravity_comp3d[,1:3]))) %>%
           dplyr::mutate(gcomp = ifelse(SGpillar >= 0, 0, gcomp)) %>%
           dplyr::select(-SGpillar)
     }

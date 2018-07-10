@@ -54,6 +54,7 @@ create_nestedGravityGrid = function(
                   radius_inner = rad_inner,
                   radius_outer = rad_outer
                   )
+      print(paste0("gravity grid created", i))
     # ggrids = create_gravityGrid()
     # Rprof(NULL) #stop the profiling session
     # summaryRprof(filename = "prof.out")
@@ -69,10 +70,12 @@ create_nestedGravityGrid = function(
                     correct_radius = thres_radius,
                     correct_depth = thres_depth,
                     SG_X = as.numeric(SGloc$x),
-                    SG_Y = as.numeric(SGloc$y)
+                    SG_Y = as.numeric(SGloc$y),
+                    grid_discretization = grid_discr
         )
+      }
       # rectangular shape
-      }else{
+      if(i == 1 & !is.na(correct_SGpillar[1]) & length(correct_SGpillar) == 6){
         pillar_x = correct_SGpillar[1:2]
         pillar_y = correct_SGpillar[3:4]
         pillar_z = correct_SGpillar[5:6]
@@ -82,7 +85,8 @@ create_nestedGravityGrid = function(
                     Pillar_y = pillar_y,
                     Pillar_z = pillar_z,
                     SG_X = as.numeric(SGloc$x),
-                    SG_Y = as.numeric(SGloc$y)
+                    SG_Y = as.numeric(SGloc$y),
+                    grid_discretization = grid_discr
         )
       }
       #

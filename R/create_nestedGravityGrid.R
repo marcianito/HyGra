@@ -18,16 +18,16 @@ create_nestedGravityGrid = function(
     grid_discretizations,
     grid_vertical,
     threshold_radi,
-    correct_SGpillar = NA 
+    correct_SGpillar = NA
 ){
     ## DEBUGGING
-    # DEM_input_files = DEM_file
-    # DEM_dir = dir_DEM
-    # SGloc = iGrav_locs
-    # grid_discretizations = grid3d_discrezitation
-    # grid_vertical = grid3d_vertDepth
-    # threshold_radi = radi_limits
-    # correct_SGpillar = SGpillar_data
+    # DEM_input_files = DEM_input_file
+    # DEM_dir = dir_input
+    # SGloc = SGloc
+    # grid_discretizations = grid3d_discr
+    # grid_vertical = grid3d_depth
+    # threshold_radi = limits_grids
+    # correct_SGpillar = NA
     ## 
     # check how much grids (=iteration) are supplied
     n_grid = length(grid_discretizations[,1])
@@ -36,7 +36,7 @@ create_nestedGravityGrid = function(
     #
     # run iteratively over all nested grids
     for(i in 1:n_grid){
-      i = 1
+      # i = 1
       # construct parameter for this nested grid run
       rad_inner = threshold_radi[i]
       rad_outer = threshold_radi[i + 1]
@@ -59,7 +59,8 @@ create_nestedGravityGrid = function(
     # summaryRprof(filename = "prof.out")
       #
       ## remove SG pillar (only for inner grid)
-      if(i == 1 & !is.na(correct_SGpillar[1])){
+      # cylinder shape
+      if(i == 1 & !is.na(correct_SGpillar[1]) & length(correct_SGpillar) == 2){
         # read threshold values for correction
         thres_radius = correct_SGpillar[1]
         thres_depth = correct_SGpillar[2]
@@ -67,6 +68,19 @@ create_nestedGravityGrid = function(
                     gravity_comp3d = gravity_grid,
                     correct_radius = thres_radius,
                     correct_depth = thres_depth,
+                    SG_X = as.numeric(SGloc$x),
+                    SG_Y = as.numeric(SGloc$y)
+        )
+      # rectangular shape
+      }else{
+        pillar_x = correct_SGpillar[1:2]
+        pillar_y = correct_SGpillar[3:4]
+        pillar_z = correct_SGpillar[5:6]
+        gravity_grid = correct_SGpillar(
+                    gravity_comp3d = gravity_grid,
+                    Pillar_x = pillar_x,
+                    Pillar_y = pillar_y,
+                    Pillar_z = pillar_z,
                     SG_X = as.numeric(SGloc$x),
                     SG_Y = as.numeric(SGloc$y)
         )

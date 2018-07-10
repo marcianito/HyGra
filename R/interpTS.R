@@ -14,7 +14,7 @@
 interpTS = function(
     data_in,
     freq_in,
-    freq_out,
+    freq_out = NA,
     aggFunc = "mean",
     data_col_name
 ){
@@ -32,8 +32,10 @@ interpTS = function(
         dplyr::left_join(gw_selected)
     # approximate (interpolate, linear) missing data 
     data_new$value = na.approx(data_new$value)
-    data_new_out = aggTS(data_new, freq_out, aggFunc)
+    if(!is.na(freq_out)){
+    data_new = aggTS(data_new, freq_out, aggFunc)
+    }
     # return data
-    return(data_new_out)
+    return(data_new)
 }
 

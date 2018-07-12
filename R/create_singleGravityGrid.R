@@ -64,7 +64,7 @@ create_singleGravityGrid = function(
     #
     ## remove SG pillar (only for inner grid)
     # cylinder shape
-    if(i == 1 & !is.na(correct_SGpillar[1]) & length(correct_SGpillar) == 2){
+    if(!is.na(correct_SGpillar[1]) & length(correct_SGpillar) == 2){
       # read threshold values for correction
       thres_radius = correct_SGpillar[1]
       thres_depth = correct_SGpillar[2]
@@ -76,7 +76,8 @@ create_singleGravityGrid = function(
                   SG_Y = as.numeric(SGloc$y)
       )
     # rectangular shape
-    }else{
+    }
+    if(!is.na(correct_SGpillar[1]) & length(correct_SGpillar) == 6){
       pillar_x = correct_SGpillar[1:2]
       pillar_y = correct_SGpillar[3:4]
       pillar_z = correct_SGpillar[5:6]

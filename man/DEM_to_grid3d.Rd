@@ -5,7 +5,7 @@
 \title{Surface grid}
 \usage{
 DEM_to_grid3d(DEM, grid_domain_x, grid_domain_y, grid_discr, depth_split,
-  loc_z = NA, input_dir, output_dir, ...)
+  loc_z = 0, input_dir, output_dir, ...)
 }
 \arguments{
 \item{DEM}{Character string, containing the name of the DEM-file to use.

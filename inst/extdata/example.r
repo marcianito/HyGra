@@ -6,15 +6,17 @@
 ## Instructions
 ####################
 
-##
-##
+## This is an example script to show some of the possibilites of the package
+## Basics are:
+## 1) Calculate a gravity component grid
+## 2) Correct for pillar and/or building
+## 3) Read soil moisture changes
+## 4) Calculate resulting gravity response
 ##
 
 ####################
 ## load libraries
-# library(HyGra)
-library(devtools)
-load_all("/home/mreich/Dokumente/written/ResearchRepos/HyGra")
+library(HyGra)
 library(zoo); Sys.setenv(TZ = "GMT")
 library(xts)
 library(dplyr)
@@ -34,8 +36,8 @@ library(plot3D)
 # Directory
 # path should be absolute
 # (if not, it will be relative to the packages library path)
-dir_input = "~/Dokumente/GravityProcessing/Local_hydrology/testdata/"
-dir_output = "~/Dokumente/GravityProcessing/Local_hydrology/testdata/"
+dir_input = "./testdata/"
+dir_output = "./testdata/"
 
 ## Gravimeter location
 # in [m]
@@ -136,7 +138,6 @@ soilMoisture_input_file = "SMdata_dummy.csv"
 #########################################
 SG_z = SG_Z + SG_SensorHeight
 SGloc = data.frame(x=SG_x, y=SG_y, z=SG_z)
-
 #########################################
 # Generate 3d gravity component grid : single
 #########################################
@@ -164,7 +165,6 @@ plot_gcomp_grid(grid_input = gravity_component_grid3d_single,
                 grid_discretization = grid3d_discr,
                 plane = "vertical"
 )
-
 #########################################
 # Generate 3d gravity component grid : nested
 #########################################
@@ -190,7 +190,6 @@ plot_gcomp_grid(grid_input = gravity_grid_nested,
                 grid_discretization = grid3d_discr,
                 plane = "vertical"
 )
-
 #########################################
 ## Correct gravity component grid for SG pillar
 #########################################
@@ -204,11 +203,6 @@ gravity_component_grid3d_single_pillarCorrected = correct_SGpillar(
             SG_X = SG_x,
             SG_Y = SG_y #,
             # grid_discretization = NA
-)
-# plotting grid
-plot_gcomp_grid(  grid_input = gravity_component_grid3d_single_pillarCorrected,
-                  yloc = SG_y,
-                  grid_discretization = grid3d_discr
 )
 #########################################
 ## Correct gravity component grid for SG building foundation
@@ -226,14 +220,6 @@ gravity_component_grid3d_single_BuildingCorrected = correct_SGbuilding_foundatio
             Pillar_z = Building_SGpillar_z,
             grid_discretization = grid3d_discr
 )
-# plotting grid
-plot_gcomp_grid(
-                  grid_input = gravity_grid_nested,
-                  yloc = SG_y,
-                  output_dir = dir_output,
-                  grid_discretization = grid3d_discrezitation
-)
-
 #########################################
 ## Extrapolate soil moisture time series data (observed or modelled) to gravity grid domain
 #########################################
@@ -245,7 +231,6 @@ SMgrid3d_dummy = SoilMoisture_grid3d(
             input_dir = dir_input
             # , sep = "a", etc..
 )
-
 #########################################
 ## Calculate gravity response (from outside of building)
 #########################################
@@ -257,5 +242,5 @@ gravity_response = calculate_gravity_response(
 ggplot(gravity_response, aes(x = datetime, y = value)) + 
   geom_line() + geom_point() + 
   xlab("time") + ylab("Gravity [nm/s²]")
-
+#########################################
 #########################################

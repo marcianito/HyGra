@@ -39,3 +39,6 @@ For bug fixes, comments or further development please contact: mreich@posteo.de 
 in debian install using: 
 `apt-get update && apt-get install libgdal-dev libproj-dev libssl-dev`
 
+## Example
+
+An example calculation, showing some of the capabilities, can be found in ./inst/extdata/example.r

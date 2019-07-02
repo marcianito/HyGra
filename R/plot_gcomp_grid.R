@@ -15,11 +15,14 @@
 
 plot_gcomp_grid = function(
             grid_input,
-            yloc,
-            output_dir,
-            grid_discretization,
+            yloc = NA,
+            layer_num = NA,
+            output_dir = NA,
+            plane,
+            # grid_discretization,
             ...
 ){
+    if(plane == "vertical"){
     # grid_input = as.data.frame(gravity_component_grid3d)
     # yloc = round(SG_y, 1)
     # finding closest y-coordinate to supplied yloc
@@ -27,8 +30,8 @@ plot_gcomp_grid = function(
     yloc_plot = y_coords[which.min(abs(y_coords - yloc))]
     # set x and z-differences for plotting correct size of tiles
     x_dif = unique(grid_input$x)[3] - unique(grid_input$x)[2]
-    # z_dif = unique(gravity_component_grid3d$z)[3] - unique(gravity_component_grid3d$z)[4]
-    z_dif = grid_discretization$z
+    z_dif = unique(grid_input$z)[3] - unique(grid_input$z)[4]
+    # z_dif = grid_discretization$z
 
     # reduce grid to one 2d transect along yloc
     grid_transect = grid_input %>%
@@ -47,13 +50,37 @@ plot_gcomp_grid = function(
         labs(fill = "Gravity component")
 
     # save plot
-    png(filename = paste0(output_dir, "Gravity_component_grid_transect.png"),
+    if(is.na(output_dir) == FALSE){
+    png(filename = paste0(output_dir, "Gravity_component_grid_verticalTransect.png"),
                       width = 600,
                       height = 400,
                       res = 150)
     print(grid_transect)
     dev.off()
-
+    }
+    # return plot
     return(grid_transect)
+    }
+    if(plane == "horizontal"){
+    # set x and z-differences for plotting correct size of tiles
+    x_dif = unique(grid_input$x)[3] - unique(grid_input$x)[2]
+    y_dif = unique(grid_input$y)[3] - unique(grid_input$y)[4]
+    # filter plot data
+    plot_data = dplyr::filter(grid_input, layer == layer_num)
+    # create plot
+    grid_horizontal = ggplot(plot_data, aes(x = x, y = y)) +
+        geom_tile(aes(fill = gcomp), width = x_dif, height = y_dif)
+    # save plot
+    if(is.na(output_dir) == FALSE){
+    png(filename = paste0(output_dir, "Gravity_component_grid_horizontal.png"),
+                      width = 600,
+                      height = 400,
+                      res = 150)
+    print(grid_horizontal)
+    dev.off()
+    }
+    # return plot
+    return(grid_horizontal)
+    }
 }
 

@@ -11,6 +11,7 @@
 #' @return Returns a data.frame containing columns of time information and the corresponding integrative gravity response.
 #'
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing 
 
 calculate_gravity_response = function(

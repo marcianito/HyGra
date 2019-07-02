@@ -13,6 +13,7 @@
 #' @return A data frame including x,y and z coordinates of walls, baseplate and SG pillar of the obervatory building.
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
 

@@ -4,7 +4,8 @@
 \alias{plot_gcomp_grid}
 \title{Plot transect of gravity component grid}
 \usage{
-plot_gcomp_grid(grid_input, yloc, output_dir, grid_discretization, ...)
+plot_gcomp_grid(grid_input, yloc = NA, layer_num = NA, output_dir = NA,
+  plane, ...)
 }
 \arguments{
 \item{grid_input}{Data.frame, containing spatial coordinates in the columns (x, y, z).}

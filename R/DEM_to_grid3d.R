@@ -13,6 +13,7 @@
 #' from the area of the SG building.
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
 

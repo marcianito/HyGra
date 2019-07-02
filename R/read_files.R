@@ -17,6 +17,7 @@
 #' So far, input data is supported in the following file formats:
 #' .rData, .csv, .tsf.
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing
 
 read_data = function(
@@ -59,6 +60,7 @@ read_data = function(
 #' 
 #' @details missing
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing
 
 read_rData = function(
@@ -96,6 +98,7 @@ read_rData = function(
 #' 
 #' @details missing
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing
 
 read_csv = function(
@@ -130,6 +133,7 @@ read_csv = function(
 #' @return Returns a data.frame, consisting of a time series (2 columns, time info and data).
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
 

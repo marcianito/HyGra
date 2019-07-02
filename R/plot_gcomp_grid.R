@@ -10,6 +10,7 @@
 #' @return Returns a ggplot figure. The plot is also saved to the specified output directory.
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
 

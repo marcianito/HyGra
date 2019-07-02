@@ -10,6 +10,7 @@
 #' @return Returns a data.frame, consisting of 4 columns: 3 dimensions in space (x,y,Z) and value, holding the gravity component data.
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
 

@@ -12,6 +12,7 @@ construct_vertices(x_cords, y_cords, z_cords)
 \description{
 Following ptinpoly-packages, this function creates vertices
 which can be used to correct gravity component grids for building structures
+(e.g. SG pillar, building baseplate, building walls, etc.).
 }
 \details{
 missing

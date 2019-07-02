@@ -14,6 +14,7 @@
 #' @return A data.frame of the corrected gravity component grid is return.
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
 

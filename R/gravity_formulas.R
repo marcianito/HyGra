@@ -8,6 +8,7 @@
 #' 
 #' @details missing
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing
 
 forsberg_raw <- function(gama,w,xl,xr,yl,yr,Zint,Zend,xs,ys,zs,rho){
@@ -46,6 +47,7 @@ forsberg_raw <- function(gama,w,xl,xr,yl,yr,Zint,Zend,xs,ys,zs,rho){
 #' @return test
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
 
@@ -76,6 +78,7 @@ macmillan_raw <- function(gama,xp,yp,zp,xs,ys,zs,dx,dy,dz,rad,w,rho){
 #' 
 #' @details missing
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing
 
 pointmass <- function(gama,zp,zs,dx,dy,dz,rad,w,rho){

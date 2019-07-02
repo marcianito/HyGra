@@ -9,6 +9,7 @@
 #' They only need to be supplied, if no surface grid is given as input.
 #' @details missing
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing
 
 surface_to_grid3d = function(

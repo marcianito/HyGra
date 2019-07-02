@@ -15,6 +15,7 @@
 #' @details missing
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
+#' @export
 #' @import gstat
 
 gravity_comp_grid = function(

@@ -14,6 +14,7 @@
 #' 
 #' @details missing
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing
 
 SoilMoisture_grid3d = function(

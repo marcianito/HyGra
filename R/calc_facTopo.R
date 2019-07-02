@@ -14,7 +14,7 @@
 #' 
 #' @details missing
 #' @references Marvin Reich (2018), mreich@@posteo.de
-#' @import 
+#' @export
 #' @examples missing
 
 calc_facTopo = function(

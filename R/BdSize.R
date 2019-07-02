@@ -9,6 +9,7 @@
 #'         area of the building. Units are as input values are supplied.
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2017), mreich@@posteo.de
 #' @examples missing
 

@@ -57,11 +57,12 @@ decimalplaces <- function(x) {
 #'
 #' @description Following ptinpoly-packages, this function creates vertices
 #' which can be used to correct gravity component grids for building structures
-# (e.g. SG pillar, building baseplate, building walls, etc.).
+#' (e.g. SG pillar, building baseplate, building walls, etc.).
 #'
 #' @param x,y,z_cords Vector, holding min and max values of the x,y and z points which fix the polyheder.
 #' @details missing
 #' @references Marvin Reich (2017), mreich@@posteo.de
+#' @export
 #' @examples missing
 
 construct_vertices = function(
@@ -119,6 +120,7 @@ normalize_mean = function(x){
 #' @details missing
 #' @references Marvin Reich (2018), mreich@@posteo.de
 #' @import dplyr
+#' @export
 #' @examples missing
 
 dif_firstLast = function(
@@ -158,6 +160,7 @@ read_dem = function(dempath, filename){
 #' @param locs data.frame with column strucure $x (coordinate), $y (coordinate), $name (name to be printed in plot)
 #' ...
 #' @details missing 
+#' @export
 #' @references Marvin Reich (2014), mreich@@gfz-potsdam.de
 #' @examples missing 
 #' 
@@ -241,7 +244,7 @@ discre <- function(C,R,x0,y0,dxdy){
 #' 
 #' @details missing
 #' @references Marvin Reich (2018), mreich@@posteo.de
-#' @import 
+#' @export
 #' @examples missing
 
 rmse = function(
@@ -263,6 +266,7 @@ rmse = function(
 #' @return test
 #' 
 #' @details missing
+#' @export
 #' @references Marvin Reich (2018), mreich@@posteo.de
 #' @examples missing
 
@@ -296,6 +300,7 @@ tif_to_ascii = function(
 #' @details Convention for setting dates corresponding to new period: POSIXct is
 #' always used from the LAST hour, day, etc. of the aggregation period.
 #' @references Marvin Reich (2018), mreich@@posteo.de
+#' @export
 #' @import dplyr
 #' @examples missing
 

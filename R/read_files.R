@@ -164,3 +164,44 @@ read_tsf = function(
     return(data_read)
 }
 
+#' @title Read gravity effects files
+#'
+#' @description Reads .csv or .tsf files and stores it as a data.frame.
+#'
+#' @param file_in Vector, containing the complete filepath of the data to read.
+#' @param dat_col numeric, column number where desired data is stored.
+#' @param dat_col_name string, name for data column.
+#' @param ... additional parameters for reading .csv lines. (sep, dec, etc.). 
+#' See documentation of read.csv() for a detailed list of options.
+#' 
+#' @return Returns a data.frame, consisting of a time series (2 columns, time info and data).
+#' 
+#' @details missing
+#' @references Marvin Reich (2019), mreich@@posteo.de
+#' @export
+#' @examples missing
+
+read_gravity_effects = function(
+                    file_in,
+                    dat_col,
+                    dat_col_name,
+                    date_format = "%Y/%m/%d %H:%M:%S",
+                    ...
+){
+    ## read .tsf file
+    # still to write this !!
+    #
+    ## read .csv file
+    data_read = read.csv(file = file_in, sep = ",", header = T)
+
+    # constructing data.frame
+    data_effect = data.frame(
+                datetime = as.POSIXct(strptime(data_read[,1], format = date_format)),
+                value = data_read[,dat_col]
+                )
+    # rename data column
+    colnames(data_effect)[2] = dat_col_name
+    # return effect data as data.frame
+    return(data_effect)
+}
+

@@ -96,7 +96,9 @@ reduce_gravity = function(
         dplyr::filter(datetime < timePeriod_end) %>%
         dplyr::mutate(value = gravity_obs - tides - atmo - polar - drift - ghe - ntol)
     if(plotting){
-        gravity_plot = reshape2::melt(gravity_residual, id.vars = "datetime")
+        gravity_plot = gravity_residual
+        colnames(gravity_plot)[9] = "gravity_residuals"
+        gravity_plot = reshape2::melt(gravity_plot, id.vars = "datetime")
         gravity_plot.pl = ggplot(gravity_plot, aes(x = datetime, y = value, color = variable)) + 
             geom_line() + 
             ylab("Gravity [nm/s²]") + xlab("")
